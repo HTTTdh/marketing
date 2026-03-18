@@ -183,7 +183,7 @@ def render(api_key: str | None = None):
     st.markdown("---")
     st.subheader("👀 Step 2 — Data Preview")
     with st.expander("Show raw data sample", expanded=False):
-        st.dataframe(df_raw.head(50), width='stretch')
+        st.dataframe(df_raw.head(50), use_container_width=True)
 
     df_clean, missing_report = handle_missing(df_raw.copy())
 
