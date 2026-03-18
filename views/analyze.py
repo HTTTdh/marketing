@@ -45,6 +45,13 @@ from services.database import save_analysis, init_db
 # PDF export helper
 # ---------------------------------------------------------------------------
 
+def _get_font_path():
+    """Locate DejaVuSans font from matplotlib for Unicode/Vietnamese support."""
+    import matplotlib
+    font_dir = os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+    return os.path.join(font_dir, "DejaVuSans.ttf"), os.path.join(font_dir, "DejaVuSans-Bold.ttf")
+
+
 def _generate_pdf_report(
     filename: str,
     n_customers: int,
@@ -55,79 +62,79 @@ def _generate_pdf_report(
 ) -> bytes:
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Register Unicode font for Vietnamese
+    font_regular, font_bold = _get_font_path()
+    pdf.add_font("VN", "", font_regular, uni=True)
+    pdf.add_font("VN", "B", font_bold, uni=True)
+
     pdf.add_page()
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "Customer Segmentation Report", ln=True, align="C")
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 7, f"File: {filename}   |   Customers: {n_customers}   |   Clusters: {n_clusters}   |   Method: {method}", ln=True, align="C")
+    pdf.set_font("VN", "B", 16)
+    pdf.cell(0, 10, "Báo cáo Phân khúc Khách hàng", ln=True, align="C")
+    pdf.set_font("VN", "", 10)
+    pdf.cell(0, 7, f"Tệp: {filename}   |   Khách hàng: {n_customers}   |   Cụm: {n_clusters}   |   Phương pháp: {method}", ln=True, align="C")
     pdf.ln(6)
 
     # Overall analysis section in PDF
     if overall_analysis:
-        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_font("VN", "B", 14)
         pdf.set_fill_color(10, 60, 100)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 9, "  Overall Cross-Cluster Analysis", ln=True, fill=True)
+        pdf.cell(0, 9, "  Phân tích Tổng thể Liên cụm", ln=True, fill=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
         key_contrast = overall_analysis.get("key_contrast", "")
         if key_contrast:
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, "Key Contrast:", ln=True)
-            pdf.set_font("Helvetica", "", 10)
-            key_contrast = key_contrast.encode("latin-1", errors="replace").decode("latin-1")
+            pdf.set_font("VN", "B", 10)
+            pdf.cell(0, 6, "Tương phản chính:", ln=True)
+            pdf.set_font("VN", "", 10)
             pdf.multi_cell(0, 6, key_contrast)
             pdf.ln(2)
 
         overall_strategy = overall_analysis.get("overall_strategy", "")
         if overall_strategy:
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, "Overall Business Strategy:", ln=True)
-            pdf.set_font("Helvetica", "", 10)
-            overall_strategy = overall_strategy.encode("latin-1", errors="replace").decode("latin-1")
+            pdf.set_font("VN", "B", 10)
+            pdf.cell(0, 6, "Chiến lược kinh doanh tổng thể:", ln=True)
+            pdf.set_font("VN", "", 10)
             pdf.multi_cell(0, 6, overall_strategy)
             pdf.ln(2)
 
         priority_actions = overall_analysis.get("priority_actions", [])
         if priority_actions:
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, "Priority Actions:", ln=True)
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("VN", "B", 10)
+            pdf.cell(0, 6, "Hành động ưu tiên:", ln=True)
+            pdf.set_font("VN", "", 10)
             for action in priority_actions:
-                action = action.encode("latin-1", errors="replace").decode("latin-1")
                 pdf.cell(0, 6, f"  - {action}", ln=True)
         pdf.ln(6)
 
     for cluster_id, insight in ai_insights.items():
-        pdf.set_font("Helvetica", "B", 13)
-        name = insight.get("segment_name", f"Cluster {cluster_id}")
-        name = name.encode("latin-1", errors="replace").decode("latin-1")
+        pdf.set_font("VN", "B", 13)
+        name = insight.get("segment_name", f"Cụm {cluster_id}")
         pdf.set_fill_color(30, 30, 60)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 9, f"  Cluster {cluster_id}: {name}", ln=True, fill=True)
+        pdf.cell(0, 9, f"  Cụm {cluster_id}: {name}", ln=True, fill=True)
         pdf.set_text_color(0, 0, 0)
 
         for label, key in [
-            ("Description", "description"),
-            ("Behavior Insight", "behavior_insight"),
-            ("Marketing Strategy", "marketing_strategy"),
+            ("Mô tả", "description"),
+            ("Thông tin hành vi", "behavior_insight"),
+            ("Chiến lược tiếp thị", "marketing_strategy"),
         ]:
-            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_font("VN", "B", 10)
             pdf.cell(0, 6, f"{label}:", ln=True)
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("VN", "", 10)
             text = insight.get(key, "N/A")
-            text = text.encode("latin-1", errors="replace").decode("latin-1")
             pdf.multi_cell(0, 6, text)
             pdf.ln(1)
 
         campaigns = insight.get("suggested_campaigns", [])
         if campaigns:
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, "Suggested Campaigns:", ln=True)
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("VN", "B", 10)
+            pdf.cell(0, 6, "Các chiến dịch đề xuất:", ln=True)
+            pdf.set_font("VN", "", 10)
             for c in campaigns:
-                c = c.encode("latin-1", errors="replace").decode("latin-1")
                 pdf.cell(0, 6, f"  - {c}", ln=True)
         pdf.ln(5)
 
@@ -141,7 +148,7 @@ def _generate_pdf_report(
 def _df_to_excel(df: pd.DataFrame) -> bytes:
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Cluster Results")
+        df.to_excel(writer, index=False, sheet_name="Ket qua Phan cum")
     return output.getvalue()
 
 
@@ -151,22 +158,22 @@ def _df_to_excel(df: pd.DataFrame) -> bytes:
 
 def render(api_key: str | None = None):
     init_db()
-    st.title("🔬 Customer Segmentation Analysis")
-    st.markdown("Upload your customer data and discover hidden segments using Agglomerative Hierarchical Clustering.")
+    st.title("🔬 Phân tích Phân khúc Khách hàng")
+    st.markdown("Tải lên dữ liệu khách hàng của bạn và khám phá các phân khúc tiềm ẩn bằng Phân cụm phân cấp tập hợp (Agglomerative Hierarchical Clustering).")
 
     # -------------------------------------------------------------------------
     # STEP 1: File Upload
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("📂 Step 1 — Upload Data")
+    st.subheader("📂 Bước 1 — Tải lên Dữ liệu")
     uploaded = st.file_uploader(
-        "Upload customer data (.csv or .xlsx)",
+        "Tải lên dữ liệu khách hàng (.csv hoặc .xlsx)",
         type=["csv", "xlsx", "xls"],
-        help="File must contain at least 2 numeric columns for clustering.",
+        help="Tệp phải chứa ít nhất 2 cột số để phân cụm.",
     )
 
     if not uploaded:
-        st.info("👆 Upload a file to get started.")
+        st.info("👆 Tải lên một tệp để bắt đầu.")
         return
 
     try:
@@ -175,67 +182,67 @@ def render(api_key: str | None = None):
         st.error(str(e))
         return
 
-    st.success(f"✅ Loaded **{len(df_raw):,}** rows × **{len(df_raw.columns)}** columns from **{uploaded.name}**")
+    st.success(f"✅ Đã tải **{len(df_raw):,}** hàng × **{len(df_raw.columns)}** cột từ **{uploaded.name}**")
 
     # -------------------------------------------------------------------------
     # STEP 2: Data Preview & Missing Value Handling
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("👀 Step 2 — Data Preview")
-    with st.expander("Show raw data sample", expanded=False):
-        st.dataframe(df_raw.head(50), use_container_width=True)
+    st.subheader("👀 Bước 2 — Xem trước Dữ liệu")
+    with st.expander("Hiển thị mẫu dữ liệu thô", expanded=False):
+        st.dataframe(df_raw.head(50), width="stretch")
 
     df_clean, missing_report = handle_missing(df_raw.copy())
 
     if missing_report:
-        st.warning(f"**Missing values detected and imputed in {len(missing_report)} column(s):**")
-        miss_df = pd.DataFrame(missing_report).T.reset_index().rename(columns={"index": "Column"})
-        st.dataframe(miss_df, width='stretch')
+        st.warning(f"**Phát hiện và điền các giá trị bị thiếu trong {len(missing_report)} cột:**")
+        miss_df = pd.DataFrame(missing_report).T.reset_index().rename(columns={"index": "Cột"})
+        st.dataframe(miss_df, width="stretch")
     else:
-        st.success("✅ No missing values detected.")
+        st.success("✅ Không phát hiện giá trị bị thiếu.")
 
     # -------------------------------------------------------------------------
     # STEP 3: Feature Selection & Clustering Configuration
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("⚙️ Step 3 — Configure Clustering")
+    st.subheader("⚙️ Bước 3 — Cấu hình Phân cụm")
 
     numeric_cols = get_numeric_columns(df_clean)
     if len(numeric_cols) < 2:
-        st.error("❌ Dataset must have at least 2 numeric columns for clustering.")
+        st.error("❌ Tập dữ liệu phải có ít nhất 2 cột số để phân cụm.")
         return
 
     col1, col2, col3 = st.columns(3)
     with col1:
         feature_cols = st.multiselect(
-            "Select features for clustering",
+            "Chọn các đặc trưng để phân cụm",
             options=numeric_cols,
             default=numeric_cols[:min(len(numeric_cols), 6)],
-            help="Choose 2+ numeric columns.",
+            help="Chọn 2+ cột số.",
         )
     with col2:
-        n_clusters = st.slider("Number of clusters", min_value=2, max_value=10, value=3)
+        n_clusters = st.slider("Số lượng cụm", min_value=2, max_value=10, value=3)
     with col3:
         linkage_method = st.selectbox(
-            "Linkage method",
+            "Phương pháp liên kết",
             options=["ward", "complete", "average", "single"],
             index=0,
-            help="'ward' minimises within-cluster variance (recommended).",
+            help="'ward' giảm thiểu phương sai trong cụm (khuyến nghị).",
         )
 
-    show_anomalies = st.checkbox("🔍 Detect anomalies (IsolationForest)", value=False)
+    show_anomalies = st.checkbox("🔍 Phát hiện bất thường (IsolationForest)", value=False)
 
     if len(feature_cols) < 2:
-        st.warning("⚠️ Please select at least 2 features.")
+        st.warning("⚠️ Vui lòng chọn ít nhất 2 đặc trưng.")
         return
 
     # -------------------------------------------------------------------------
     # STEP 4: Run Analysis
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("🚀 Step 4 — Run Analysis")
+    st.subheader("🚀 Bước 4 — Chạy phân tích")
 
-    run_clicked = st.button("▶ Run Clustering Analysis", width='stretch', type="primary")
+    run_clicked = st.button("▶ Chạy phân tích phân cụm", width="stretch", type="primary")
 
     analysis_signature = {
         "uploaded_name": uploaded.name,
@@ -251,53 +258,53 @@ def render(api_key: str | None = None):
     cached_matches_current = bool(cached_result and cached_result.get("signature") == analysis_signature)
 
     if run_clicked:
-        progress = st.progress(0, text="Starting analysis…")
+        progress = st.progress(0, text="Bắt đầu phân tích…")
         status = st.empty()
 
-        with st.spinner("Running analysis…"):
-            status.text("⚙️ Scaling features…")
-            progress.progress(10, "Scaling features…")
+        with st.spinner("Đang chạy phân tích…"):
+            status.text("⚙️ Đang chuẩn hóa đặc trưng…")
+            progress.progress(10, "Đang chuẩn hóa đặc trưng…")
             scaled, _ = scale_features(df_clean.to_json(), feature_cols)
 
-            status.text("🔗 Computing linkage matrix…")
-            progress.progress(20, "Computing linkage…")
+            status.text("🔗 Đang tính toán ma trận liên kết…")
+            progress.progress(20, "Đang tính toán liên kết…")
             linkage_matrix = compute_linkage(scaled, method=linkage_method)
 
-            status.text("🎯 Assigning clusters…")
-            progress.progress(35, "Assigning clusters…")
+            status.text("🎯 Đang gán cụm…")
+            progress.progress(35, "Đang gán cụm…")
             labels = assign_clusters(scaled, n_clusters, linkage_method)
 
-            status.text("📐 Computing PCA…")
-            progress.progress(48, "PCA projection…")
+            status.text("📐 Đang tính toán PCA…")
+            progress.progress(48, "Đang chiếu PCA…")
             pca_coords = compute_pca(scaled)
 
             anomaly_mask = None
             if show_anomalies:
-                status.text("🔍 Detecting anomalies…")
-                progress.progress(55, "Detecting anomalies…")
+                status.text("🔍 Đang phát hiện bất thường…")
+                progress.progress(55, "Đang phát hiện bất thường…")
                 anomaly_mask = detect_anomalies(scaled)
 
-            status.text("📊 Computing cluster statistics…")
-            progress.progress(65, "Computing statistics…")
+            status.text("📊 Đang tính toán thống kê cụm…")
+            progress.progress(65, "Đang tính toán thống kê…")
             df_result = df_clean.copy()
             df_result["Cluster"] = labels
             profiles = cluster_profiles(df_result, "Cluster")
             silhouette = compute_silhouette(scaled, labels)
 
-            status.text("🤖 Generating per-cluster AI insights…")
-            progress.progress(75, "Per-cluster AI analysis…")
+            status.text("🤖 Đang tạo thông tin chi tiết từ AI cho mỗi cụm…")
+            progress.progress(75, "Phân tích AI cho mỗi cụm…")
             ai_insights = analyze_all_clusters(profiles, api_key=api_key)
 
             # NEW: overall cross-cluster analysis
-            status.text("🧠 Generating overall cross-cluster analysis…")
-            progress.progress(90, "Overall AI analysis…")
+            status.text("🧠 Đang tạo phân tích tổng thể liên cụm…")
+            progress.progress(90, "Phân tích AI tổng thể…")
             overall_analysis = analyze_overall(
                 profiles,
                 ai_insights,
                 api_key=api_key,
             )
 
-            progress.progress(100, "Done!")
+            progress.progress(100, "Hoàn thành!")
             status.empty()
             time.sleep(0.3)
             progress.empty()
@@ -315,11 +322,11 @@ def render(api_key: str | None = None):
             "overall_analysis": overall_analysis,
         }
         cached_result = st.session_state["analysis_result"]
-        st.success("✅ Analysis complete!")
+        st.success("✅ Phân tích hoàn tất!")
 
     elif not cached_matches_current:
         if has_cached_result:
-            st.info("⚠️ Analysis settings changed. Click **Run Clustering Analysis** to refresh results before saving/exporting.")
+            st.info("⚠️ Cài đặt phân tích đã thay đổi. Nhấp vào **Chạy phân tích phân cụm** để làm mới kết quả trước khi lưu/xuất.")
         return
 
     df_result = cached_result["df_result"]
@@ -333,123 +340,127 @@ def render(api_key: str | None = None):
     overall_analysis = cached_result.get("overall_analysis", {})
 
     if linkage_matrix is None:
-        st.info("⚠️ Cached analysis format is outdated. Click **Run Clustering Analysis** once to refresh visualizations.")
+        st.info("⚠️ Định dạng phân tích được lưu trong bộ nhớ cache đã lỗi thời. Nhấp vào **Chạy phân tích phân cụm** một lần để làm mới hình ảnh trực quan.")
         return
 
     # -------------------------------------------------------------------------
     # STEP 5: Metrics
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("📈 Step 5 — Summary Metrics")
+    st.subheader("📈 Bước 5 — Các chỉ số Tóm tắt")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("👥 Total Customers", f"{len(df_result):,}")
-    m2.metric("🔵 Clusters", n_clusters)
-    m3.metric("📐 Silhouette Score", f"{silhouette:.3f}" if silhouette >= 0 else "N/A")
-    m4.metric("📊 Features Used", len(feature_cols))
+    m1.metric("👥 Tổng số khách hàng", f"{len(df_result):,}")
+    m2.metric("🔵 Số cụm", n_clusters)
+    m3.metric("📐 Điểm Silhouette", f"{silhouette:.3f}" if silhouette >= 0 else "N/A")
+    m4.metric("📊 Đặc trưng đã sử dụng", len(feature_cols))
 
     if show_anomalies and anomaly_mask is not None:
         n_anom = int(anomaly_mask.sum())
-        st.info(f"⚠️ **{n_anom}** potential anomalies detected ({n_anom/len(df_result)*100:.1f}% of customers).")
+        st.info(f"⚠️ **{n_anom}** bất thường tiềm ẩn được phát hiện ({n_anom/len(df_result)*100:.1f}% khách hàng).")
 
     # -------------------------------------------------------------------------
     # STEP 6: Visualizations
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("📊 Step 6 — Visualizations")
+    st.subheader("📊 Bước 6 — Trực quan hóa")
 
     tab_dend, tab_pca, tab_heat, tab_dist, tab_box, tab_radar = st.tabs([
-        "🌲 Dendrogram", "🔵 PCA", "🌡️ Heatmap",
-        "📊 Distribution", "📦 Box Plots", "🕸️ Radar"
+        "🌲 Biểu đồ cây", "🔵 PCA", "🌡️ Biểu đồ nhiệt",
+        "📊 Phân phối", "📦 Biểu đồ hộp", "🕸️ Biểu đồ Radar"
     ])
 
     with tab_dend:
-        st.subheader("Hierarchical Clustering Dendrogram")
+        st.subheader("Biểu đồ cây Phân cụm Phân cấp")
         fig_dend = plot_dendrogram(linkage_matrix)
-        st.pyplot(fig_dend, width='stretch')
+        st.pyplot(fig_dend, width="stretch")
 
     with tab_pca:
-        st.subheader("PCA — 2D Cluster Projection")
+        st.subheader("PCA — Chiếu cụm 2D")
         fig_pca = plot_pca(pca_coords, labels, anomaly_mask)
-        st.plotly_chart(fig_pca, width='stretch')
+        st.plotly_chart(fig_pca, width="stretch")
 
     with tab_heat:
-        st.subheader("Feature Profile Heatmap")
+        st.subheader("Biểu đồ nhiệt Hồ sơ Đặc trưng")
         fig_heat = plot_heatmap(profiles)
-        st.pyplot(fig_heat, width='stretch')
+        st.pyplot(fig_heat, width="stretch")
 
     with tab_dist:
-        st.subheader("Customer Distribution per Cluster")
+        st.subheader("Phân phối khách hàng mỗi cụm")
         fig_dist = plot_cluster_distribution(labels)
-        st.plotly_chart(fig_dist, width='stretch')
+        st.plotly_chart(fig_dist, width="stretch")
 
     with tab_box:
-        st.subheader("Feature Distribution by Cluster")
+        st.subheader("Phân phối đặc trưng theo cụm")
         fig_box = plot_feature_boxplots(df_result, feature_cols)
-        st.plotly_chart(fig_box, width='stretch')
+        st.plotly_chart(fig_box, width="stretch")
 
     with tab_radar:
-        st.subheader("Cluster Comparison (Radar)")
+        st.subheader("So sánh cụm (Radar)")
         fig_radar = plot_cluster_comparison(profiles)
-        st.plotly_chart(fig_radar, width='stretch')
+        st.plotly_chart(fig_radar, width="stretch")
 
     # -------------------------------------------------------------------------
     # STEP 7: AI Insights
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("🤖 Step 7 — AI-Powered Cluster Insights")
+    st.subheader("🤖 Bước 7 — Thông tin chi tiết về cụm từ AI")
 
     if not os.getenv("GEMINI_API_KEY"):
-        st.info("💡 **Tip:** Set `GEMINI_API_KEY` in your `.env` file for real Gemini AI insights. Currently showing rule-based analysis.")
+        st.info("💡 **Mẹo:** Đặt `GEMINI_API_KEY` trong tệp `.env` của bạn để có thông tin chi tiết từ Gemini AI thực sự. Hiện đang hiển thị phân tích dựa trên quy tắc.")
 
     # --- 7A: Overall Cross-Cluster Analysis (NEW) ---
     if overall_analysis:
-        st.markdown("### 🧠 Overall Analysis")
+        st.markdown("### 🧠 Phân tích Tổng thể")
 
         # Key contrast callout
         key_contrast = overall_analysis.get("key_contrast", "")
         if key_contrast:
-            st.info(f"**💡 Key Contrast across segments:** {key_contrast}")
+            st.info(f"**💡 Tương phản chính giữa các phân khúc:** {key_contrast}")
 
         # Cluster comparison table
         comparisons = overall_analysis.get("cluster_comparison", [])
         if comparisons:
-            st.markdown("#### 🔍 Cross-Cluster Comparison")
+            st.markdown("#### 🔍 So sánh liên cụm")
             comp_df = pd.DataFrame(comparisons)
-            comp_df.columns = ["Aspect", "Summary"]
+            if len(comp_df.columns) == 2:
+                comp_df.columns = ["Khía cạnh", "Tóm tắt"]
+            elif len(comp_df.columns) >= 2:
+                comp_df = comp_df.iloc[:, :2]
+                comp_df.columns = ["Khía cạnh", "Tóm tắt"]
             st.table(comp_df)
 
         # Overall strategy
         overall_strategy = overall_analysis.get("overall_strategy", "")
         if overall_strategy:
-            st.markdown("#### 🏢 Overall Business Strategy")
+            st.markdown("#### 🏢 Chiến lược kinh doanh tổng thể")
             st.success(overall_strategy)
 
         # Priority actions
         priority_actions = overall_analysis.get("priority_actions", [])
         if priority_actions:
-            st.markdown("#### 🎯 Priority Actions")
+            st.markdown("#### 🎯 Hành động ưu tiên")
             for i, action in enumerate(priority_actions, start=1):
                 st.markdown(f"**{i}.** {action}")
 
         st.markdown("---")
 
     # --- 7B: Per-Cluster Insights (existing) ---
-    st.markdown("### 📋 Per-Cluster Breakdown")
+    st.markdown("### 📋 Phân tích chi tiết mỗi cụm")
     for cluster_id, insight in ai_insights.items():
-        segment_name = insight.get("segment_name", f"Cluster {cluster_id}")
-        with st.expander(f"🔵 Cluster {cluster_id}: **{segment_name}**", expanded=True):
+        segment_name = insight.get("segment_name", f"Cụm {cluster_id}")
+        with st.expander(f"🔵 Cụm {cluster_id}: **{segment_name}**", expanded=True):
             col_a, col_b = st.columns([1, 1])
             with col_a:
-                st.markdown("**📝 Description**")
+                st.markdown("**📝 Mô tả**")
                 st.write(insight.get("description", ""))
-                st.markdown("**🧠 Behavior Insight**")
+                st.markdown("**🧠 Thông tin chi tiết về hành vi**")
                 st.write(insight.get("behavior_insight", ""))
             with col_b:
-                st.markdown("**🎯 Marketing Strategy**")
+                st.markdown("**🎯 Chiến lược tiếp thị**")
                 st.write(insight.get("marketing_strategy", ""))
                 campaigns = insight.get("suggested_campaigns", [])
                 if campaigns:
-                    st.markdown("**📣 Suggested Campaigns**")
+                    st.markdown("**📣 Các chiến dịch được đề xuất**")
                     for c in campaigns:
                         st.markdown(f"  - {c}")
 
@@ -457,10 +468,10 @@ def render(api_key: str | None = None):
     # STEP 8: Save to Database
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("💾 Step 8 — Save Analysis")
+    st.subheader("💾 Bước 8 — Lưu Phân tích")
 
-    if st.button("💾 Save to History", width='stretch'):
-        with st.spinner("Saving…"):
+    if st.button("💾 Lưu vào Lịch sử", width="stretch"):
+        with st.spinner("Đang lưu…"):
             cluster_stats_json = {
                 str(cid): profiles.loc[cid].to_dict() for cid in profiles.index
             }
@@ -472,34 +483,34 @@ def render(api_key: str | None = None):
                 cluster_stats=cluster_stats_json,
                 ai_insights={str(k): v for k, v in ai_insights.items()},
             )
-        st.success(f"✅ Analysis saved! (ID: `{analysis_id}`)")
+        st.success(f"✅ Phân tích đã được lưu! (ID: `{analysis_id}`)")
 
     # -------------------------------------------------------------------------
     # STEP 9: Export
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.subheader("📥 Step 9 — Export Results")
+    st.subheader("📥 Bước 9 — Xuất Kết quả")
 
     exp1, exp2, exp3 = st.columns(3)
 
     with exp1:
         csv_bytes = df_result.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📄 Download CSV",
+            label="📄 Tải xuống CSV",
             data=csv_bytes,
             file_name=f"clusters_{uploaded.name.rsplit('.', 1)[0]}.csv",
             mime="text/csv",
-            width='stretch',
+            width="stretch",
         )
 
     with exp2:
         excel_bytes = _df_to_excel(df_result)
         st.download_button(
-            label="📊 Download Excel",
+            label="📊 Tải xuống Excel",
             data=excel_bytes,
             file_name=f"clusters_{uploaded.name.rsplit('.', 1)[0]}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width='stretch',
+            width="stretch",
         )
 
     with exp3:
@@ -512,9 +523,9 @@ def render(api_key: str | None = None):
             overall_analysis=overall_analysis,
         )
         st.download_button(
-            label="📋 Download PDF Report",
+            label="📋 Tải xuống Báo cáo PDF",
             data=pdf_bytes,
             file_name=f"report_{uploaded.name.rsplit('.', 1)[0]}.pdf",
             mime="application/pdf",
-            width='stretch',
+            width="stretch",
         )

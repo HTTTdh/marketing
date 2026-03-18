@@ -24,7 +24,7 @@ from typing import Optional
 
 def plot_dendrogram(
     linkage_matrix: np.ndarray,
-    title: str = "Hierarchical Clustering Dendrogram",
+    title: str = "Bieu do cay Phan cum Phan cap",
     truncate_mode: Optional[str] = "lastp",
     p: int = 30,
     color_threshold: Optional[float] = None,
@@ -43,8 +43,8 @@ def plot_dendrogram(
         above_threshold_color="#888",
     )
     ax.set_title(title, color="white", fontsize=14, pad=12)
-    ax.set_xlabel("Sample Index / Cluster Size", color="#aaa", fontsize=10)
-    ax.set_ylabel("Distance", color="#aaa", fontsize=10)
+    ax.set_xlabel("Chi so Mau / Kich thuoc Cum", color="#aaa", fontsize=10)
+    ax.set_ylabel("Khoang cach", color="#aaa", fontsize=10)
     ax.tick_params(colors="white")
     for spine in ax.spines.values():
         spine.set_edgecolor("#444")
@@ -73,7 +73,7 @@ def plot_pca(
         x="PC1",
         y="PC2",
         color="Cluster",
-        title="PCA – Customer Clusters",
+        title="PCA - Cum Khach hang",
         template="plotly_dark",
         color_discrete_sequence=px.colors.qualitative.Bold,
         hover_data={"PC1": ":.3f", "PC2": ":.3f", "Cluster": True},
@@ -87,7 +87,7 @@ def plot_pca(
                 y=anomaly_df["PC2"],
                 mode="markers",
                 marker=dict(symbol="x", size=10, color="red", line=dict(width=2)),
-                name="Anomaly",
+                name="Bat thuong",
             )
         )
 
@@ -95,7 +95,7 @@ def plot_pca(
         plot_bgcolor="#0e1117",
         paper_bgcolor="#0e1117",
         font_color="white",
-        legend_title_text="Cluster",
+        legend_title_text="Cum",
     )
     return fig
 
@@ -121,9 +121,9 @@ def plot_heatmap(profiles: pd.DataFrame) -> plt.Figure:
         cbar_kws={"shrink": 0.8},
         annot_kws={"size": 9},
     )
-    ax.set_title("Cluster Feature Profiles (Mean)", color="white", fontsize=13, pad=12)
-    ax.set_xlabel("Features", color="#aaa")
-    ax.set_ylabel("Cluster", color="#aaa")
+    ax.set_title("Ho so Dac trung Cum (Trung binh)", color="white", fontsize=13, pad=12)
+    ax.set_xlabel("Dac trung", color="#aaa")
+    ax.set_ylabel("Cum", color="#aaa")
     ax.tick_params(colors="white", labelsize=9)
     plt.tight_layout()
     return fig
@@ -137,10 +137,10 @@ def plot_cluster_distribution(labels: np.ndarray) -> go.Figure:
     """Bar chart of customer count per cluster."""
     unique, counts = np.unique(labels, return_counts=True)
     fig = px.bar(
-        x=[f"Cluster {u}" for u in unique],
+        x=[f"Cum {u}" for u in unique],
         y=counts,
-        labels={"x": "Cluster", "y": "Number of Customers"},
-        title="Customer Count per Cluster",
+        labels={"x": "Cum", "y": "So luong Khach hang"},
+        title="So luong Khach hang moi Cum",
         template="plotly_dark",
         color=counts,
         color_continuous_scale="Viridis",
@@ -178,7 +178,7 @@ def plot_cluster_comparison(profiles: pd.DataFrame) -> go.Figure:
                 r=values,
                 theta=features + [features[0]],
                 fill="toself",
-                name=f"Cluster {cluster_id}",
+                name=f"Cum {cluster_id}",
                 line_color=colors[i % len(colors)],
                 opacity=0.7,
             )
@@ -192,7 +192,7 @@ def plot_cluster_comparison(profiles: pd.DataFrame) -> go.Figure:
         ),
         showlegend=True,
         template="plotly_dark",
-        title="Cluster Comparison (Normalised Features)",
+        title="So sanh Cum (Dac trung Chuan hoa)",
         paper_bgcolor="#0e1117",
         font_color="white",
     )
@@ -214,7 +214,7 @@ def plot_feature_boxplots(df: pd.DataFrame, feature_cols: list, cluster_col: str
         x="Feature",
         y="Value",
         color=cluster_col,
-        title="Feature Distribution by Cluster",
+        title="Phan phoi Dac trung theo Cum",
         template="plotly_dark",
         color_discrete_sequence=px.colors.qualitative.Bold,
     )
@@ -222,6 +222,6 @@ def plot_feature_boxplots(df: pd.DataFrame, feature_cols: list, cluster_col: str
         plot_bgcolor="#0e1117",
         paper_bgcolor="#0e1117",
         font_color="white",
-        legend_title_text="Cluster",
+        legend_title_text="Cum",
     )
     return fig

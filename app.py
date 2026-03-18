@@ -20,7 +20,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "Customer Segmentation AI — powered by AHC + OpenAI",
+        "About": "AI Phân khúc Khách hàng — sử dụng AHC + Gemini",
     },
 )
 
@@ -75,18 +75,18 @@ st.markdown(
 
 # ─── Sidebar Navigation ───────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🔬 Segmentation AI")
+    st.markdown("## 🔬 AI Phân khúc")
     st.markdown("---")
     page = st.radio(
-        "Navigation",
-        options=["🔍 Analyze", "📚 History"],
+        "Điều hướng",
+        options=["🔍 Phân tích", "📚 Lịch sử"],
         index=0,
         label_visibility="collapsed",
     )
     st.markdown("---")
     st.markdown(
         """
-        **Tech Stack**
+        **Ngăn xếp công nghệ**
         - Streamlit · Pandas · NumPy
         - Scipy · Scikit-learn
         - OpenAI GPT-4o-mini
@@ -97,14 +97,14 @@ with st.sidebar:
     st.markdown("---")
     api_key_set = bool(os.getenv("GEMINI_API_KEY"))
     if api_key_set:
-        st.success("🔑 Gemini API Key: Loaded")
+        st.success("🔑 Khóa API Gemini: Đã tải")
     else:
-        st.warning("🔑 Gemini API Key: Not Found\n\nAdd key to `.env` file to enable AI features.")
+        st.warning("🔑 Khóa API Gemini: Không tìm thấy\n\nThêm khóa vào tệp `.env` để bật các tính năng AI.")
 
 # ─── Route to Pages ───────────────────────────────────────────────────────────
 api_key = os.getenv("GEMINI_API_KEY")
 
-if page == "🔍 Analyze":
+if page == "🔍 Phân tích":
     from views.analyze import render
     render(api_key=api_key)
 else:

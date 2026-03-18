@@ -80,19 +80,20 @@ def _build_prompt(cluster_id: int, stats: dict, all_profiles_summary: str) -> st
     stats_text = json.dumps(stats, indent=2, default=str)
 
     return (
-        "You are a senior marketing analyst. Analyze this customer segment and return ONLY a JSON object.\n\n"
-        "Other segments summary (for context):\n"
+        "Bạn là một chuyên gia phân tích marketing cao cấp. Phân tích phân khúc khách hàng này và trả về CHỈ một đối tượng JSON.\n"
+        "QUAN TRỌNG: Tất cả nội dung phải được viết bằng tiếng Việt.\n\n"
+        "Tóm tắt các phân khúc khác (để tham chiếu):\n"
         f"{all_profiles_summary}\n\n"
-        f"Cluster ID: {cluster_id}\n"
-        "This cluster's mean feature values:\n"
+        f"Mã cụm: {cluster_id}\n"
+        "Giá trị trung bình các đặc trưng của cụm này:\n"
         f"{stats_text}\n\n"
-        "Return ONLY this JSON, no markdown, no extra text, no trailing commas:\n"
+        "Trả về CHỈ JSON này, không markdown, không text thừa, không dấu phẩy cuối:\n"
         "{\n"
-        '  "segment_name": "Short name max 4 words",\n'
-        '  "description": "2 sentences about who these customers are vs other segments.",\n'
-        '  "behavior_insight": "One sentence unique behavioral trait.",\n'
-        '  "marketing_strategy": "One sentence specific strategy.",\n'
-        '  "suggested_campaigns": ["Campaign 1", "Campaign 2", "Campaign 3"]\n'
+        '  "segment_name": "Tên ngắn tối đa 4 từ bằng tiếng Việt",\n'
+        '  "description": "2 câu bằng tiếng Việt mô tả khách hàng trong phân khúc này so với các phân khúc khác.",\n'
+        '  "behavior_insight": "Một câu bằng tiếng Việt về đặc điểm hành vi nổi bật.",\n'
+        '  "marketing_strategy": "Một câu bằng tiếng Việt về chiến lược cụ thể.",\n'
+        '  "suggested_campaigns": ["Chiến dịch 1 bằng tiếng Việt", "Chiến dịch 2", "Chiến dịch 3"]\n'
         "}"
     )
 
@@ -103,7 +104,7 @@ def _build_overall_prompt(all_profiles_summary: str, cluster_insights: dict) -> 
     for cid, ins in cluster_insights.items():
         name = ins.get("segment_name", f"Cluster {cid}")
         strategy = ins.get("marketing_strategy", "")
-        segment_lines.append(f"- Cluster {cid} ({name}): {strategy}")
+        segment_lines.append(f"- Cụm {cid} ({name}): {strategy}")
     segments_summary = "\n".join(segment_lines)
 
     summary_lines = all_profiles_summary.splitlines()
@@ -111,25 +112,26 @@ def _build_overall_prompt(all_profiles_summary: str, cluster_insights: dict) -> 
         all_profiles_summary = "\n".join(summary_lines[:30]) + "\n... (truncated)"
 
     return (
-        "You are a senior business strategist. Given these customer segments, provide a "
-        "cross-cluster analysis. Return ONLY a JSON object.\n\n"
-        "Cluster profiles (mean feature values):\n"
+        "Bạn là một chiến lược gia kinh doanh cao cấp. Dựa trên các phân khúc khách hàng này, "
+        "hãy cung cấp phân tích liên cụm. Trả về CHỈ một đối tượng JSON.\n"
+        "QUAN TRỌNG: Tất cả nội dung phải được viết bằng tiếng Việt.\n\n"
+        "Hồ sơ các cụm (giá trị trung bình đặc trưng):\n"
         f"{all_profiles_summary}\n\n"
-        "Segment overview:\n"
+        "Tổng quan phân khúc:\n"
         f"{segments_summary}\n\n"
-        "Return ONLY this JSON, no markdown, no extra text, no trailing commas:\n"
+        "Trả về CHỈ JSON này, không markdown, không text thừa, không dấu phẩy cuối:\n"
         "{\n"
         '  "cluster_comparison": [\n'
-        '    {"aspect": "Spending Power", "summary": "One sentence comparing all clusters."},\n'
-        '    {"aspect": "Engagement Level", "summary": "One sentence comparing all clusters."},\n'
-        '    {"aspect": "Growth Potential", "summary": "One sentence comparing all clusters."}\n'
+        '    {"aspect": "Sức mua", "summary": "Một câu bằng tiếng Việt so sánh tất cả các cụm."},\n'
+        '    {"aspect": "Mức độ Tương tác", "summary": "Một câu bằng tiếng Việt so sánh tất cả các cụm."},\n'
+        '    {"aspect": "Tiềm năng Tăng trưởng", "summary": "Một câu bằng tiếng Việt so sánh tất cả các cụm."}\n'
         "  ],\n"
-        '  "key_contrast": "1-2 sentences on the most striking contrast between any two clusters.",\n'
-        '  "overall_strategy": "2-3 sentences on a unified strategy leveraging all segments.",\n'
+        '  "key_contrast": "1-2 câu bằng tiếng Việt về sự tương phản nổi bật nhất giữa hai cụm bất kỳ.",\n'
+        '  "overall_strategy": "2-3 câu bằng tiếng Việt về chiến lược thống nhất tận dụng tất cả các phân khúc.",\n'
         '  "priority_actions": [\n'
-        '    "Action 1 for highest-value opportunity.",\n'
-        '    "Action 2 addressing biggest risk.",\n'
-        '    "Action 3 for long-term growth."\n'
+        '    "Hành động 1 bằng tiếng Việt cho cơ hội giá trị cao nhất.",\n'
+        '    "Hành động 2 bằng tiếng Việt giải quyết rủi ro lớn nhất.",\n'
+        '    "Hành động 3 bằng tiếng Việt cho tăng trưởng dài hạn."\n'
         "  ]\n"
         "}"
     )
@@ -202,26 +204,26 @@ def _rule_based_insight(cluster_id: int, stats: dict) -> dict:
     avg = sum(values) / max(len(values), 1)
 
     if avg > 0.5:
-        name = "High-Value Customers"
-        desc = "This segment shows above-average metrics across most features, indicating engaged and high-value customers."
-        behavior = "Frequent purchasers with strong brand loyalty."
-        strategy = "Retention-focused campaigns with VIP perks and loyalty rewards."
-        campaigns = ["VIP Loyalty Program", "Premium Upsell Campaign", "Referral Reward Program"]
+        name = "Khách hàng Giá trị cao"
+        desc = "Phân khúc này có các chỉ số trên trung bình ở hầu hết đặc trưng, cho thấy khách hàng tích cực và có giá trị cao."
+        behavior = "Mua hàng thường xuyên với mức trung thành thương hiệu cao."
+        strategy = "Chiến dịch giữ chân khách hàng với đặc quyền VIP và phần thưởng trung thành."
+        campaigns = ["Chương trình Khách hàng VIP", "Chiến dịch Nâng cấp Cao cấp", "Chương trình Giới thiệu Thưởng"]
     elif avg < -0.3:
-        name = "At-Risk Customers"
-        desc = "This segment shows below-average metrics, suggesting disengaged or churning customers."
-        behavior = "Low engagement with infrequent interactions."
-        strategy = "Re-engagement campaigns with discounts and win-back offers."
-        campaigns = ["Win-Back Email Series", "Discount Voucher Campaign", "Re-Engagement Survey"]
+        name = "Khách hàng Có nguy cơ"
+        desc = "Phân khúc này có các chỉ số dưới trung bình, cho thấy khách hàng không tích cực hoặc có nguy cơ rời bỏ."
+        behavior = "Mức độ tương tác thấp với tần suất tương tác không thường xuyên."
+        strategy = "Chiến dịch tái tương tác với giảm giá và ưu đãi thu hút quay lại."
+        campaigns = ["Chuỗi Email Thu hút Quay lại", "Chiến dịch Phiếu Giảm giá", "Khảo sát Tái tương tác"]
     else:
-        name = "Mid-Tier Customers"
-        desc = "This segment represents typical customers with average engagement and spend."
-        behavior = "Moderate purchasing frequency with potential for upselling."
-        strategy = "Cross-sell and educational campaigns to increase engagement."
-        campaigns = ["Cross-Sell Bundle Campaign", "Educational Content Series", "Seasonal Promotions"]
+        name = "Khách hàng Tầm trung"
+        desc = "Phân khúc này đại diện cho khách hàng điển hình với mức độ tương tác và chi tiêu trung bình."
+        behavior = "Tần suất mua hàng vừa phải với tiềm năng bán thêm."
+        strategy = "Chiến dịch bán chéo và giáo dục để tăng mức độ tương tác."
+        campaigns = ["Chiến dịch Gói Bán chéo", "Chuỗi Nội dung Giáo dục", "Khuyến mãi Theo mùa"]
 
     return {
-        "segment_name": f"{name} (Cluster {cluster_id})",
+        "segment_name": f"{name} (Cụm {cluster_id})",
         "description": desc,
         "behavior_insight": behavior,
         "marketing_strategy": strategy,
@@ -235,44 +237,44 @@ def _rule_based_overall(cluster_insights: dict) -> dict:
 
     comparison = [
         {
-            "aspect": "Segment Size & Diversity",
+            "aspect": "Quy mô & Đa dạng Phân khúc",
             "summary": (
-                f"The dataset contains {n} distinct customer segments, each with unique "
-                "behavioral and demographic profiles that require tailored approaches."
+                f"Tập dữ liệu chứa {n} phân khúc khách hàng riêng biệt, mỗi phân khúc có "
+                "hồ sơ hành vi và nhân khẩu học riêng, đòi hỏi các phương pháp tiếp cận phù hợp."
             ),
         },
         {
-            "aspect": "Engagement Levels",
+            "aspect": "Mức độ Tương tác",
             "summary": (
-                "Segments vary significantly in engagement — high-value clusters show frequent "
-                "interactions while at-risk clusters show declining activity."
+                "Các phân khúc khác nhau đáng kể về mức độ tương tác — cụm giá trị cao có tương tác "
+                "thường xuyên trong khi cụm có nguy cơ cho thấy hoạt động giảm sút."
             ),
         },
         {
-            "aspect": "Revenue Potential",
+            "aspect": "Tiềm năng Doanh thu",
             "summary": (
-                "High-value segments contribute disproportionately to revenue, while mid-tier "
-                "segments represent the largest growth opportunity through targeted upselling."
+                "Phân khúc giá trị cao đóng góp tỷ trọng lớn vào doanh thu, trong khi phân khúc "
+                "tầm trung đại diện cho cơ hội tăng trưởng lớn nhất thông qua bán thêm có mục tiêu."
             ),
         },
     ]
 
     key_contrast = (
-        "The most striking contrast is between the high-value loyal customers and the at-risk "
-        "disengaged segment — their diverging behaviors demand completely different investment strategies."
+        "Sự tương phản nổi bật nhất là giữa khách hàng trung thành giá trị cao và phân khúc "
+        "không tích cực có nguy cơ — hành vi phân kỳ của họ đòi hỏi chiến lược đầu tư hoàn toàn khác nhau."
     )
 
     overall_strategy = (
-        f"With {n} distinct customer segments identified, the business should adopt a tiered "
-        "engagement model: prioritise retention for high-value customers, activate growth campaigns "
-        "for mid-tier segments, and deploy targeted re-engagement programmes for at-risk customers. "
-        "Allocating budget proportionally to lifetime value potential across segments will maximise overall ROI."
+        f"Với {n} phân khúc khách hàng riêng biệt được xác định, doanh nghiệp nên áp dụng mô hình "
+        "tương tác theo tầng: ưu tiên giữ chân khách hàng giá trị cao, kích hoạt chiến dịch tăng trưởng "
+        "cho phân khúc tầm trung, và triển khai chương trình tái tương tác có mục tiêu cho khách hàng có nguy cơ. "
+        "Phân bổ ngân sách tỷ lệ thuận với tiềm năng giá trị vòng đời giữa các phân khúc sẽ tối đa hóa ROI tổng thể."
     )
 
     priority_actions = [
-        "Launch a VIP retention programme for the highest-value segment to protect core revenue.",
-        "Develop a structured upsell funnel for mid-tier customers to accelerate their progression to high-value status.",
-        "Implement an automated win-back sequence for at-risk segments before churn becomes irreversible.",
+        "Triển khai chương trình giữ chân VIP cho phân khúc giá trị cao nhất để bảo vệ nguồn doanh thu cốt lõi.",
+        "Xây dựng quy trình bán thêm có cấu trúc cho khách hàng tầm trung để đẩy nhanh sự chuyển đổi lên trạng thái giá trị cao.",
+        "Thiết lập chuỗi thu hút quay lại tự động cho phân khúc có nguy cơ trước khi tỷ lệ rời bỏ trở nên không thể đảo ngược.",
     ]
 
     return {
