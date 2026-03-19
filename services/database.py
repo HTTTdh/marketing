@@ -52,6 +52,14 @@ class Analysis(Base):
     clustering_method = Column(String(50), default="ward")
     cluster_stats = Column(Text, nullable=True)   # JSON string
     ai_insights = Column(Text, nullable=True)     # JSON string
+    # Extended data for full visualization replay
+    labels_json = Column(Text, nullable=True)
+    pca_coords_json = Column(Text, nullable=True)
+    linkage_matrix_json = Column(Text, nullable=True)
+    feature_cols_json = Column(Text, nullable=True)
+    df_result_json = Column(Text, nullable=True)
+    overall_analysis = Column(Text, nullable=True)
+    silhouette_score = Column(String(20), nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -59,8 +67,29 @@ class Analysis(Base):
 # ---------------------------------------------------------------------------
 
 def init_db() -> None:
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, and migrate schema for new columns."""
     Base.metadata.create_all(bind=ENGINE)
+    _migrate_add_columns()
+
+
+def _migrate_add_columns() -> None:
+    """Add new columns to existing tables if they are missing."""
+    new_cols = [
+        ("labels_json", "TEXT"),
+        ("pca_coords_json", "TEXT"),
+        ("linkage_matrix_json", "TEXT"),
+        ("feature_cols_json", "TEXT"),
+        ("df_result_json", "TEXT"),
+        ("overall_analysis", "TEXT"),
+        ("silhouette_score", "VARCHAR(20)"),
+    ]
+    with ENGINE.connect() as conn:
+        result = conn.execute(text("PRAGMA table_info(analyses)"))
+        existing = {row[1] for row in result.fetchall()}
+        for col_name, col_type in new_cols:
+            if col_name not in existing:
+                conn.execute(text(f"ALTER TABLE analyses ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +103,14 @@ def save_analysis(
     clustering_method: str,
     cluster_stats: dict,
     ai_insights: dict,
+    *,
+    labels: list | None = None,
+    pca_coords: list | None = None,
+    linkage_matrix: list | None = None,
+    feature_cols: list | None = None,
+    df_result: dict | None = None,
+    overall_analysis: dict | None = None,
+    silhouette_score: float | None = None,
 ) -> str:
     """Persist a new analysis record. Returns the generated UUID."""
     record = Analysis(
@@ -84,6 +121,13 @@ def save_analysis(
         clustering_method=clustering_method,
         cluster_stats=json.dumps(cluster_stats, default=str),
         ai_insights=json.dumps(ai_insights, default=str),
+        labels_json=json.dumps(labels, default=str) if labels is not None else None,
+        pca_coords_json=json.dumps(pca_coords, default=str) if pca_coords is not None else None,
+        linkage_matrix_json=json.dumps(linkage_matrix, default=str) if linkage_matrix is not None else None,
+        feature_cols_json=json.dumps(feature_cols) if feature_cols is not None else None,
+        df_result_json=json.dumps(df_result, default=str) if df_result is not None else None,
+        overall_analysis=json.dumps(overall_analysis, default=str) if overall_analysis is not None else None,
+        silhouette_score=str(silhouette_score) if silhouette_score is not None else None,
     )
     with SessionLocal() as session:
         session.add(record)
@@ -130,4 +174,11 @@ def _to_dict(row: Analysis) -> dict:
         "clustering_method": row.clustering_method,
         "cluster_stats": json.loads(row.cluster_stats) if row.cluster_stats else {},
         "ai_insights": json.loads(row.ai_insights) if row.ai_insights else {},
+        "labels": json.loads(row.labels_json) if row.labels_json else None,
+        "pca_coords": json.loads(row.pca_coords_json) if row.pca_coords_json else None,
+        "linkage_matrix": json.loads(row.linkage_matrix_json) if row.linkage_matrix_json else None,
+        "feature_cols": json.loads(row.feature_cols_json) if row.feature_cols_json else None,
+        "df_result": json.loads(row.df_result_json) if row.df_result_json else None,
+        "overall_analysis": json.loads(row.overall_analysis) if row.overall_analysis else None,
+        "silhouette_score": float(row.silhouette_score) if row.silhouette_score else None,
     }

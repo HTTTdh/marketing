@@ -475,6 +475,8 @@ def render(api_key: str | None = None):
             cluster_stats_json = {
                 str(cid): profiles.loc[cid].to_dict() for cid in profiles.index
             }
+            # Prepare data for full visualization replay in history
+            df_subset = df_result[feature_cols + ["Cluster"]].copy()
             analysis_id = save_analysis(
                 filename=uploaded.name,
                 number_of_customers=len(df_result),
@@ -482,6 +484,13 @@ def render(api_key: str | None = None):
                 clustering_method=linkage_method,
                 cluster_stats=cluster_stats_json,
                 ai_insights={str(k): v for k, v in ai_insights.items()},
+                labels=labels.tolist(),
+                pca_coords=pca_coords.tolist(),
+                linkage_matrix=linkage_matrix.tolist(),
+                feature_cols=feature_cols,
+                df_result=df_subset.to_dict(orient="list"),
+                overall_analysis=overall_analysis,
+                silhouette_score=silhouette,
             )
         st.success(f"✅ Phân tích đã được lưu! (ID: `{analysis_id}`)")
 
