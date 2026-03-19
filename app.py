@@ -95,14 +95,14 @@ with st.sidebar:
         """
     )
     st.markdown("---")
-    api_key_set = bool(os.getenv("GEMINI_API_KEY"))
+    api_key_set = bool(os.getenv("OPENAI_API_KEY"))
     if api_key_set:
-        st.success("🔑 Khóa API Gemini: Đã tải")
+        st.success("🔑 Khóa API OpenAI: Đã tải")
     else:
-        st.warning("🔑 Khóa API Gemini: Không tìm thấy\n\nThêm khóa vào tệp `.env` để bật các tính năng AI.")
+        st.warning("🔑 Khóa API OpenAI: Không tìm thấy\n\nThêm khóa vào tệp `.env` để bật các tính năng AI.")
 
 # ─── Route to Pages ───────────────────────────────────────────────────────────
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY")
 
 if page == "🔍 Phân tích":
     from views.analyze import render

@@ -405,8 +405,8 @@ def render(api_key: str | None = None):
     st.markdown("---")
     st.subheader("🤖 Bước 7 — Thông tin chi tiết về cụm từ AI")
 
-    if not os.getenv("GEMINI_API_KEY"):
-        st.info("💡 **Mẹo:** Đặt `GEMINI_API_KEY` trong tệp `.env` của bạn để có thông tin chi tiết từ Gemini AI thực sự. Hiện đang hiển thị phân tích dựa trên quy tắc.")
+    if not os.getenv("OPENAI_API_KEY"):
+        st.info("💡 **Mẹo:** Đặt `OPENAI_API_KEY` trong tệp `.env` của bạn để có thông tin chi tiết từ OpenAI thực sự. Hiện đang hiển thị phân tích dựa trên quy tắc.")
 
     # --- 7A: Overall Cross-Cluster Analysis (NEW) ---
     if overall_analysis:

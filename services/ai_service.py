@@ -1,70 +1,24 @@
 """
 services/ai_service.py
-Google Gemini-powered cluster analysis with graceful rule-based fallback.
+OpenAI-powered cluster analysis with graceful rule-based fallback.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from functools import lru_cache
 from typing import Optional
 
 import pandas as pd
 
 try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    OPENAI_AVAILABLE = False
 
 
-PREFERRED_MODELS = (
-    "gemini-1.5-flash-latest"
-)
-
-
-@lru_cache(maxsize=8)
-def _get_supported_generate_models(api_key: str) -> tuple[str, ...]:
-    """Return model names that support generateContent for the given API key."""
-    if not GEMINI_AVAILABLE or not api_key:
-        return tuple()
-
-    try:
-        supported = []
-        for model in genai.list_models():
-            methods = getattr(model, "supported_generation_methods", []) or []
-            if "generateContent" not in methods:
-                continue
-            full_name = str(getattr(model, "name", ""))
-            if full_name.startswith("models/"):
-                supported.append(full_name.split("/", 1)[1])
-        return tuple(supported)
-    except Exception:
-        return tuple()
-
-
-def _resolve_model_name(api_key: str, requested_model: Optional[str]) -> Optional[str]:
-    """Choose a valid model name with graceful fallback."""
-    env_model = (os.getenv("GEMINI_MODEL") or "").strip()
-    requested = (requested_model or "").strip()
-    candidates = [m for m in [requested, env_model, *PREFERRED_MODELS] if m]
-
-    available = _get_supported_generate_models(api_key)
-    if available:
-        for candidate in candidates:
-            if candidate in available:
-                return candidate
-        for name in available:
-            if "gemini" in name:
-                return name
-        if available:
-            return available[0]
-
-    if candidates:
-        return candidates[0]
-
-    return None
+PREFERRED_MODEL = "gpt-4o-mini"
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +98,7 @@ def _build_overall_prompt(all_profiles_summary: str, cluster_insights: dict) -> 
 def _parse_json_safe(raw: str) -> dict:
     """
     Strip markdown fences then parse JSON.
-    If Gemini truncated the response, repair by closing open structures.
+    If the model truncated the response, repair by closing open structures.
     """
     if raw.startswith("```"):
         parts = raw.split("```")
@@ -199,7 +153,7 @@ def _parse_json_safe(raw: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _rule_based_insight(cluster_id: int, stats: dict) -> dict:
-    """Simple rule-based insight when Gemini is unavailable."""
+    """Simple rule-based insight when OpenAI is unavailable."""
     values = [v for v in stats.values() if isinstance(v, (int, float))]
     avg = sum(values) / max(len(values), 1)
 
@@ -232,7 +186,7 @@ def _rule_based_insight(cluster_id: int, stats: dict) -> dict:
 
 
 def _rule_based_overall(cluster_insights: dict) -> dict:
-    """Rule-based overall analysis when Gemini is unavailable."""
+    """Rule-based overall analysis when OpenAI is unavailable."""
     n = len(cluster_insights)
 
     comparison = [
@@ -289,6 +243,21 @@ def _rule_based_overall(cluster_insights: dict) -> dict:
 # Main analysis functions
 # ---------------------------------------------------------------------------
 
+def _get_client(api_key: str) -> "OpenAI":
+    """Create an OpenAI client with the given API key."""
+    return OpenAI(api_key=api_key)
+
+
+def _resolve_model(model_name: Optional[str] = None) -> str:
+    """Choose a model name: explicit override > env var > default."""
+    if model_name and model_name.strip():
+        return model_name.strip()
+    env_model = (os.getenv("OPENAI_MODEL") or "").strip()
+    if env_model:
+        return env_model
+    return PREFERRED_MODEL
+
+
 def analyze_cluster(
     cluster_id: int,
     stats: dict,
@@ -297,44 +266,30 @@ def analyze_cluster(
     model_name: Optional[str] = None,
 ) -> dict:
     """
-    Analyze a single cluster using Google Gemini.
+    Analyze a single cluster using OpenAI.
     Falls back to rule-based logic if API key is missing or call fails.
-
-    Args:
-        cluster_id: Integer cluster label.
-        stats: Dict of {feature_name: mean_value}.
-        all_profiles_summary: String summary of all cluster profiles for context.
-        api_key: Gemini API key (falls back to env var GEMINI_API_KEY).
-        model_name: Gemini model name override.
-
-    Returns:
-        Dict with: segment_name, description, behavior_insight,
-                   marketing_strategy, suggested_campaigns.
     """
-    key = api_key or os.getenv("GEMINI_API_KEY", "")
+    key = api_key or os.getenv("OPENAI_API_KEY", "")
 
-    if not key or not GEMINI_AVAILABLE:
+    if not key or not OPENAI_AVAILABLE:
         return _rule_based_insight(cluster_id, stats)
 
     try:
-        genai.configure(api_key=key)
-        resolved_model = _resolve_model_name(key, model_name)
-        if not resolved_model:
-            print("[AI Service] No valid Gemini model found. Falling back to rules.")
-            return _rule_based_insight(cluster_id, stats)
+        client = _get_client(key)
+        model = _resolve_model(model_name)
+        prompt = _build_prompt(cluster_id, stats, all_profiles_summary)
 
-        model = genai.GenerativeModel(
-            model_name=resolved_model,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.4,
-                max_output_tokens=2048,
-            ),
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=2048,
         )
-        response = model.generate_content(_build_prompt(cluster_id, stats, all_profiles_summary))
-        return _parse_json_safe(response.text.strip())
+        raw = response.choices[0].message.content.strip()
+        return _parse_json_safe(raw)
 
     except Exception as exc:
-        print(f"[AI Service] Gemini error for cluster {cluster_id}: {exc}")
+        print(f"[AI Service] OpenAI error for cluster {cluster_id}: {exc}")
         return _rule_based_insight(cluster_id, stats)
 
 
@@ -345,45 +300,32 @@ def analyze_overall(
     model_name: Optional[str] = None,
 ) -> dict:
     """
-    Generate a cross-cluster comparison and overall business strategy using Gemini.
+    Generate a cross-cluster comparison and overall business strategy using OpenAI.
     Falls back to rule-based logic if API key is missing or call fails.
-
-    Args:
-        profiles: DataFrame of cluster mean profiles (index = cluster_id).
-        cluster_insights: Dict of {cluster_id: insight_dict} from analyze_all_clusters.
-        api_key: Gemini API key (falls back to env var GEMINI_API_KEY).
-        model_name: Gemini model name override.
-
-    Returns:
-        Dict with: cluster_comparison, key_contrast, overall_strategy, priority_actions.
     """
-    key = api_key or os.getenv("GEMINI_API_KEY", "")
+    key = api_key or os.getenv("OPENAI_API_KEY", "")
 
-    if not key or not GEMINI_AVAILABLE:
+    if not key or not OPENAI_AVAILABLE:
         return _rule_based_overall(cluster_insights)
 
     try:
-        genai.configure(api_key=key)
-        resolved_model = _resolve_model_name(key, model_name)
-        if not resolved_model:
-            print("[AI Service] No valid Gemini model found for overall analysis. Falling back to rules.")
-            return _rule_based_overall(cluster_insights)
-
-        model = genai.GenerativeModel(
-            model_name=resolved_model,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.5,
-                max_output_tokens=2048,
-            ),
-        )
+        client = _get_client(key)
+        model = _resolve_model(model_name)
 
         all_profiles_summary = profiles.to_string(float_format="%.2f")
         prompt = _build_overall_prompt(all_profiles_summary, cluster_insights)
-        response = model.generate_content(prompt)
-        return _parse_json_safe(response.text.strip())
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=2048,
+        )
+        raw = response.choices[0].message.content.strip()
+        return _parse_json_safe(raw)
 
     except Exception as exc:
-        print(f"[AI Service] Gemini error for overall analysis: {exc}")
+        print(f"[AI Service] OpenAI error for overall analysis: {exc}")
         return _rule_based_overall(cluster_insights)
 
 
