@@ -236,8 +236,8 @@ def render(api_key: str | None = None):
     show_anomalies = st.checkbox("🔍 Phát hiện bất thường (IsolationForest)", value=False)
     enable_ai_insights = st.checkbox(
         "🤖 Tạo insight AI / rule-based",
-        value=False,
-        help="Tắt mục này nếu bạn chỉ muốn phân cụm và vẽ biểu đồ để chạy nhanh hơn.",
+        value=True,
+        help="Mặc định bật như ban đầu. Tắt mục này nếu bạn chỉ muốn phân cụm và vẽ biểu đồ để chạy nhanh hơn.",
     )
 
     if len(feature_cols) < 2:
