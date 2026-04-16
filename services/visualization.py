@@ -16,6 +16,64 @@ import plotly.express as px
 import plotly.graph_objects as go
 from scipy.cluster.hierarchy import dendrogram
 from typing import Optional
+# ---------------------------------------------------------------------------
+# Elbow Method chart (Plotly)
+# ---------------------------------------------------------------------------
+
+def plot_elbow(k_values: list, inertia_values: list, recommended_k: int | None = None) -> go.Figure:
+    """
+    Line chart of KMeans inertia vs number of clusters (Elbow Method).
+    Optionally marks the recommended k with a vertical dashed line.
+    """
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=k_values,
+        y=inertia_values,
+        mode="lines+markers",
+        line=dict(color="#7C83FD", width=3),
+        marker=dict(size=9, color="#FFA6C9", line=dict(color="white", width=1.5)),
+        name="Inertia (WCSS)",
+        hovertemplate="k = %{x}<br>Inertia = %{y:,.1f}<extra></extra>",
+    ))
+
+    if recommended_k is not None and recommended_k in k_values:
+        idx = k_values.index(recommended_k)
+        fig.add_vline(
+            x=recommended_k,
+            line=dict(color="#FFD700", width=2, dash="dash"),
+            annotation_text=f"  k = {recommended_k} (gợi ý)",
+            annotation_font_color="#FFD700",
+            annotation_position="top right",
+        )
+        fig.add_trace(go.Scatter(
+            x=[recommended_k],
+            y=[inertia_values[idx]],
+            mode="markers",
+            marker=dict(size=15, color="#FFD700", symbol="star", line=dict(color="white", width=1)),
+            name=f"k = {recommended_k} (gợi ý)",
+            hovertemplate=f"k tối ưu gợi ý = {recommended_k}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title="Phương pháp Elbow — Chọn số cụm tối ưu (k)",
+        xaxis=dict(
+            title="Số cụm k",
+            tickmode="linear",
+            tick0=k_values[0],
+            dtick=1,
+            color="white",
+            gridcolor="#333",
+        ),
+        yaxis=dict(title="Inertia (WCSS)", color="white", gridcolor="#333"),
+        template="plotly_dark",
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font_color="white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+    )
+    return fig
 
 
 # ---------------------------------------------------------------------------

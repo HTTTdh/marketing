@@ -1,6 +1,6 @@
 """
 services/clustering.py
-AHC clustering, PCA, silhouette score, anomaly detection.
+AHC clustering, PCA, silhouette score, anomaly detection, elbow method.
 """
 
 from __future__ import annotations
@@ -8,12 +8,32 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, fcluster
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.ensemble import IsolationForest
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
-from typing import Tuple
+from typing import Tuple, List
 import streamlit as st
+
+
+# ---------------------------------------------------------------------------
+# Elbow Method (KMeans inertia) — help choose optimal k
+# ---------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> Tuple[List[int], List[float]]:
+    """
+    Compute KMeans inertia for a range of k values.
+    Returns (k_values, inertia_values) for plotting the Elbow curve.
+    """
+    if k_range is None:
+        k_range = list(range(2, 11))
+    inertias: List[float] = []
+    for k in k_range:
+        km = KMeans(n_clusters=k, init="k-means++", n_init=10, random_state=42)
+        km.fit(scaled_data)
+        inertias.append(float(km.inertia_))
+    return k_range, inertias
 
 
 # ---------------------------------------------------------------------------

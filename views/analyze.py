@@ -28,6 +28,7 @@ from services.clustering import (
     compute_silhouette,
     compute_pca,
     detect_anomalies,
+    compute_elbow,
 )
 from services.visualization import (
     plot_dendrogram,
@@ -36,6 +37,7 @@ from services.visualization import (
     plot_cluster_distribution,
     plot_cluster_comparison,
     plot_feature_boxplots,
+    plot_elbow,
 )
 from services.ai_service import analyze_all_clusters, analyze_overall
 from services.database import save_analysis, init_db
@@ -190,14 +192,14 @@ def render(api_key: str | None = None):
     st.markdown("---")
     st.subheader("👀 Bước 2 — Xem trước Dữ liệu")
     with st.expander("Hiển thị mẫu dữ liệu thô", expanded=False):
-        st.dataframe(df_raw.head(50), width="stretch")
+        st.dataframe(df_raw.head(50), use_container_width=True)
 
     df_clean, missing_report = handle_missing(df_raw.copy())
 
     if missing_report:
         st.warning(f"**Phát hiện và điền các giá trị bị thiếu trong {len(missing_report)} cột:**")
         miss_df = pd.DataFrame(missing_report).T.reset_index().rename(columns={"index": "Cột"})
-        st.dataframe(miss_df, width="stretch")
+        st.dataframe(miss_df, use_container_width=True)
     else:
         st.success("✅ Không phát hiện giá trị bị thiếu.")
 
@@ -236,13 +238,44 @@ def render(api_key: str | None = None):
         st.warning("⚠️ Vui lòng chọn ít nhất 2 đặc trưng.")
         return
 
+    # -----------------------------------------------------------------------
+    # Elbow Method — hỗ trợ chọn k tối ưu
+    # -----------------------------------------------------------------------
+    with st.expander("📈 Xem biểu đồ Elbow Method để chọn k tối ưu", expanded=False):
+        st.markdown(
+            "Biểu đồ Elbow Method tính **Inertia (WCSS)** với KMeans cho từng giá trị k. "
+            "Chọn k tại **điểm gấp khúc** (elbow) — nơi đường cong bắt đầu phẳng lại."
+        )
+        k_min_elbow = st.number_input("k tối thiểu", min_value=2, max_value=8, value=2, key="k_min_elbow")
+        k_max_elbow = st.number_input("k tối đa", min_value=3, max_value=15, value=10, key="k_max_elbow")
+        if k_max_elbow <= k_min_elbow:
+            st.warning("k tối đa phải lớn hơn k tối thiểu.")
+        else:
+            if st.button("🔍 Tính Elbow", key="btn_elbow"):
+                with st.spinner("Đang tính Elbow Method…"):
+                    _scaled_elbow, _ = scale_features(df_clean.to_json(), feature_cols)
+                    _k_vals, _inertias = compute_elbow(_scaled_elbow, list(range(int(k_min_elbow), int(k_max_elbow) + 1)))
+                st.session_state["elbow_result"] = {"k_vals": _k_vals, "inertias": _inertias}
+
+            if "elbow_result" in st.session_state:
+                _er = st.session_state["elbow_result"]
+                _rec_k = st.selectbox(
+                    "Đánh dấu k gợi ý trên biểu đồ:",
+                    options=_er["k_vals"],
+                    index=min(1, len(_er["k_vals"]) - 1),
+                    key="elbow_sel_k",
+                )
+                fig_elbow = plot_elbow(_er["k_vals"], _er["inertias"], recommended_k=int(_rec_k))
+                st.plotly_chart(fig_elbow, use_container_width=True)
+                st.caption("💡 Sau khi xác định k từ biểu đồ trên, hãy đặt **Số lượng cụm** ở slider bên trên và nhấn Chạy phân tích.")
+
     # -------------------------------------------------------------------------
     # STEP 4: Run Analysis
     # -------------------------------------------------------------------------
     st.markdown("---")
     st.subheader("🚀 Bước 4 — Chạy phân tích")
 
-    run_clicked = st.button("▶ Chạy phân tích phân cụm", width="stretch", type="primary")
+    run_clicked = st.button("▶ Chạy phân tích phân cụm", use_container_width=True, type="primary")
 
     analysis_signature = {
         "uploaded_name": uploaded.name,
@@ -291,6 +324,15 @@ def render(api_key: str | None = None):
             profiles = cluster_profiles(df_result, "Cluster")
             silhouette = compute_silhouette(scaled, labels)
 
+            # Xác định scatter_cols: bỏ các cột ID và Tuổi khỏi biểu đồ phân tán / hộp
+            _id_age_keywords = ["id", "tuoi", "age", "mã", "ma", "stt"]
+            scatter_cols = [
+                c for c in feature_cols
+                if not any(kw in c.lower() for kw in _id_age_keywords)
+            ]
+            if len(scatter_cols) < 2:
+                scatter_cols = feature_cols  # fallback nếu lọc xong còn ít hơn 2 cột
+
             status.text("🤖 Đang tạo thông tin chi tiết từ AI cho mỗi cụm…")
             progress.progress(75, "Phân tích AI cho mỗi cụm…")
             ai_insights = analyze_all_clusters(profiles, api_key=api_key)
@@ -320,6 +362,7 @@ def render(api_key: str | None = None):
             "silhouette": silhouette,
             "ai_insights": ai_insights,
             "overall_analysis": overall_analysis,
+            "scatter_cols": scatter_cols,
         }
         cached_result = st.session_state["analysis_result"]
         st.success("✅ Phân tích hoàn tất!")
@@ -338,6 +381,8 @@ def render(api_key: str | None = None):
     silhouette = cached_result["silhouette"]
     ai_insights = cached_result["ai_insights"]
     overall_analysis = cached_result.get("overall_analysis", {})
+    # scatter_cols: cột dùng cho biểu đồ phân tán & hộp (đã bỏ ID/Tuổi)
+    scatter_cols = cached_result.get("scatter_cols", feature_cols)
 
     if linkage_matrix is None:
         st.info("⚠️ Định dạng phân tích được lưu trong bộ nhớ cache đã lỗi thời. Nhấp vào **Chạy phân tích phân cụm** một lần để làm mới hình ảnh trực quan.")
@@ -365,39 +410,47 @@ def render(api_key: str | None = None):
     st.subheader("📊 Bước 6 — Trực quan hóa")
 
     tab_dend, tab_pca, tab_heat, tab_dist, tab_box, tab_radar = st.tabs([
-        "🌲 Biểu đồ cây", "🔵 PCA", "🌡️ Biểu đồ nhiệt",
+        "🌲 Biểu đồ cây", "🔵 Phân tán (PCA)", "🌡️ Biểu đồ nhiệt",
         "📊 Phân phối", "📦 Biểu đồ hộp", "🕸️ Biểu đồ Radar"
     ])
 
     with tab_dend:
         st.subheader("Biểu đồ cây Phân cụm Phân cấp")
         fig_dend = plot_dendrogram(linkage_matrix)
-        st.pyplot(fig_dend, width="stretch")
+        st.pyplot(fig_dend, use_container_width=True)
 
     with tab_pca:
-        st.subheader("PCA — Chiếu cụm 2D")
-        fig_pca = plot_pca(pca_coords, labels, anomaly_mask)
-        st.plotly_chart(fig_pca, width="stretch")
+        st.subheader("PCA — Chiếu cụm 2D (chỉ dùng đặc trưng tiêu dùng, bỏ ID & Tuổi)")
+        # Tính lại PCA chỉ trên scatter_cols nếu khác feature_cols
+        if scatter_cols != feature_cols:
+            _sc_scaled, _ = scale_features(df_result.to_json(), scatter_cols)
+            _pca_coords_sc = compute_pca(_sc_scaled)
+        else:
+            _pca_coords_sc = pca_coords
+        fig_pca = plot_pca(_pca_coords_sc, labels, anomaly_mask)
+        st.plotly_chart(fig_pca, use_container_width=True)
+        st.caption(f"📌 Các đặc trưng dùng để vẽ: {', '.join(scatter_cols)}")
 
     with tab_heat:
         st.subheader("Biểu đồ nhiệt Hồ sơ Đặc trưng")
         fig_heat = plot_heatmap(profiles)
-        st.pyplot(fig_heat, width="stretch")
+        st.pyplot(fig_heat, use_container_width=True)
 
     with tab_dist:
         st.subheader("Phân phối khách hàng mỗi cụm")
         fig_dist = plot_cluster_distribution(labels)
-        st.plotly_chart(fig_dist, width="stretch")
+        st.plotly_chart(fig_dist, use_container_width=True)
 
     with tab_box:
-        st.subheader("Phân phối đặc trưng theo cụm")
-        fig_box = plot_feature_boxplots(df_result, feature_cols)
-        st.plotly_chart(fig_box, width="stretch")
+        st.subheader("Phân phối đặc trưng tiêu dùng theo cụm (bỏ ID & Tuổi)")
+        fig_box = plot_feature_boxplots(df_result, scatter_cols)
+        st.plotly_chart(fig_box, use_container_width=True)
+        st.caption(f"📌 Các đặc trưng dùng để vẽ: {', '.join(scatter_cols)}")
 
     with tab_radar:
         st.subheader("So sánh cụm (Radar)")
         fig_radar = plot_cluster_comparison(profiles)
-        st.plotly_chart(fig_radar, width="stretch")
+        st.plotly_chart(fig_radar, use_container_width=True)
 
     # -------------------------------------------------------------------------
     # STEP 7: AI Insights
@@ -470,7 +523,7 @@ def render(api_key: str | None = None):
     st.markdown("---")
     st.subheader("💾 Bước 8 — Lưu Phân tích")
 
-    if st.button("💾 Lưu vào Lịch sử", width="stretch"):
+    if st.button("💾 Lưu vào Lịch sử", use_container_width=True):
         with st.spinner("Đang lưu…"):
             cluster_stats_json = {
                 str(cid): profiles.loc[cid].to_dict() for cid in profiles.index
@@ -509,7 +562,7 @@ def render(api_key: str | None = None):
             data=csv_bytes,
             file_name=f"clusters_{uploaded.name.rsplit('.', 1)[0]}.csv",
             mime="text/csv",
-            width="stretch",
+            use_container_width=True,
         )
 
     with exp2:
@@ -519,7 +572,7 @@ def render(api_key: str | None = None):
             data=excel_bytes,
             file_name=f"clusters_{uploaded.name.rsplit('.', 1)[0]}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width="stretch",
+            use_container_width=True,
         )
 
     with exp3:
@@ -536,5 +589,5 @@ def render(api_key: str | None = None):
             data=pdf_bytes,
             file_name=f"report_{uploaded.name.rsplit('.', 1)[0]}.pdf",
             mime="application/pdf",
-            width="stretch",
+            use_container_width=True,
         )
