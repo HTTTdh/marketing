@@ -59,8 +59,8 @@ def plot_dendrogram(
 ) -> plt.Figure:
     """Return matplotlib Figure with dendrogram."""
     fig, ax = plt.subplots(figsize=(14, 5))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
 
     ddata = dendrogram(
         linkage_matrix,
@@ -70,12 +70,13 @@ def plot_dendrogram(
         color_threshold=color_threshold,
         above_threshold_color="#888",
     )
-    ax.set_title(title, color="white", fontsize=14, pad=12)
-    ax.set_xlabel("Chi so Mau / Kich thuoc Cum", color="#aaa", fontsize=10)
-    ax.set_ylabel("Khoang cach", color="#aaa", fontsize=10)
-    ax.tick_params(colors="white")
+    ax.set_title(title, color="#1f2937", fontsize=14, pad=12)
+    ax.set_xlabel("Chi so Mau / Kich thuoc Cum", color="#5b6475", fontsize=10)
+    ax.set_ylabel("Khoang cach", color="#5b6475", fontsize=10)
+    ax.tick_params(colors="#374151")
+    ax.grid(True, axis="y", alpha=0.2)
     for spine in ax.spines.values():
-        spine.set_edgecolor("#444")
+        spine.set_edgecolor("#d9e0ef")
     plt.tight_layout()
     return fig
 
@@ -147,8 +148,8 @@ def plot_pca(
 def plot_heatmap(profiles: pd.DataFrame) -> plt.Figure:
     """Return seaborn heatmap of cluster mean feature values."""
     fig, ax = plt.subplots(figsize=(max(10, len(profiles.columns)), max(4, len(profiles) + 1)))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
 
     sns.heatmap(
         profiles,
@@ -157,14 +158,14 @@ def plot_heatmap(profiles: pd.DataFrame) -> plt.Figure:
         cmap="RdYlGn",
         ax=ax,
         linewidths=0.5,
-        linecolor="#222",
+        linecolor="#e5e7eb",
         cbar_kws={"shrink": 0.8},
         annot_kws={"size": 9},
     )
-    ax.set_title("Ho so Dac trung Cum (Trung binh)", color="white", fontsize=13, pad=12)
-    ax.set_xlabel("Dac trung", color="#aaa")
-    ax.set_ylabel("Cum", color="#aaa")
-    ax.tick_params(colors="white", labelsize=9)
+    ax.set_title("Ho so Dac trung Cum (Trung binh)", color="#1f2937", fontsize=13, pad=12)
+    ax.set_xlabel("Dac trung", color="#5b6475")
+    ax.set_ylabel("Cum", color="#5b6475")
+    ax.tick_params(colors="#374151", labelsize=9)
     plt.tight_layout()
     return fig
 
@@ -181,16 +182,16 @@ def plot_cluster_distribution(labels: np.ndarray) -> go.Figure:
         y=counts,
         labels={"x": "Cum", "y": "So luong Khach hang"},
         title="So luong Khach hang moi Cum",
-        template="plotly_dark",
+        template="plotly_white",
         color=counts,
-        color_continuous_scale="Viridis",
+        color_continuous_scale="Blues",
         text=counts,
     )
     fig.update_traces(textposition="outside")
     fig.update_layout(
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
-        font_color="white",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font_color="#1f2937",
         showlegend=False,
         coloraxis_showscale=False,
     )
@@ -226,15 +227,15 @@ def plot_cluster_comparison(profiles: pd.DataFrame) -> go.Figure:
 
     fig.update_layout(
         polar=dict(
-            bgcolor="#1a1a2e",
-            radialaxis=dict(visible=True, range=[0, 1], color="white"),
-            angularaxis=dict(color="white"),
+            bgcolor="white",
+            radialaxis=dict(visible=True, range=[0, 1], color="#374151", gridcolor="#d9e0ef"),
+            angularaxis=dict(color="#374151", gridcolor="#d9e0ef"),
         ),
         showlegend=True,
-        template="plotly_dark",
+        template="plotly_white",
         title="So sanh Cum (Dac trung Chuan hoa)",
-        paper_bgcolor="#0e1117",
-        font_color="white",
+        paper_bgcolor="white",
+        font_color="#1f2937",
     )
     return fig
 
@@ -255,13 +256,13 @@ def plot_feature_boxplots(df: pd.DataFrame, feature_cols: list, cluster_col: str
         y="Value",
         color=cluster_col,
         title="Phan phoi Dac trung theo Cum",
-        template="plotly_dark",
+        template="plotly_white",
         color_discrete_sequence=px.colors.qualitative.Bold,
     )
     fig.update_layout(
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
-        font_color="white",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font_color="#1f2937",
         legend_title_text="Cum",
     )
     return fig

@@ -28,45 +28,124 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Dark sidebar */
+    :root {
+        --bg-main: #f7f8fc;
+        --bg-card: #ffffff;
+        --bg-soft: #eef2ff;
+        --border: #d9e0ef;
+        --text-main: #1f2937;
+        --text-muted: #5b6475;
+        --accent: #315efb;
+        --accent-2: #5aa9ff;
+    }
+    html, body, [class*="css"] {
+        color: var(--text-main);
+    }
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"] {
+        background: transparent !important;
+    }
+    /* Light sidebar */
     [data-testid="stSidebar"] {
-        background-color: #0d1117;
+        background: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
+        border-right: 1px solid var(--border);
     }
     /* Main background */
     .stApp {
-        background-color: #0e1117;
+        background:
+            radial-gradient(circle at top left, #eef4ff 0%, transparent 28%),
+            linear-gradient(180deg, #f9fbff 0%, #f4f6fb 100%);
+        color: var(--text-main);
+    }
+    .block-container {
+        color: var(--text-main);
+    }
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="textarea"] > div,
+    div[data-baseweb="popover"] {
+        background-color: #ffffff !important;
+        color: var(--text-main) !important;
+        border-color: var(--border) !important;
+    }
+    .stDataFrame, .stTable, [data-testid="stDataFrame"] {
+        background: white !important;
+        color: var(--text-main) !important;
+    }
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stText"],
+    [data-testid="stCaptionContainer"],
+    label,
+    .stSelectbox label,
+    .stMultiSelect label,
+    .stNumberInput label,
+    .stCheckbox label {
+        color: var(--text-main) !important;
+    }
+    [data-baseweb="tag"] {
+        background-color: var(--bg-soft) !important;
+        color: var(--text-main) !important;
     }
     /* Metric cards */
     [data-testid="stMetric"] {
-        background-color: #1a1f2e;
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid #2d3748;
+        background-color: var(--bg-card);
+        border-radius: 14px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
     }
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
+        gap: 8px;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: #1a1f2e;
-        border-radius: 6px 6px 0 0;
+        background-color: rgba(255, 255, 255, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 10px 10px 0 0;
+        color: var(--text-main);
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: var(--bg-soft);
+        border-bottom-color: transparent;
     }
     /* Buttons */
+    .stButton > button {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+    }
     .stButton > button[data-testid="baseButton-primary"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
         border: none;
         font-weight: 600;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.2px;
+        color: white;
     }
     /* Expander headers */
     details summary {
-        background-color: #1a1f2e;
-        border-radius: 6px;
+        background-color: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 10px;
         padding: 8px 12px;
     }
     /* Progress bar */
     .stProgress > div > div {
-        background: linear-gradient(90deg, #667eea, #764ba2);
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    /* Inputs / containers */
+    [data-testid="stFileUploader"],
+    [data-testid="stSelectbox"],
+    [data-testid="stMultiSelect"],
+    [data-testid="stNumberInput"],
+    [data-testid="stTextInput"],
+    [data-testid="stDateInput"] {
+        background: transparent;
+    }
+    [data-testid="stMarkdownContainer"] p {
+        color: var(--text-main);
+    }
+    [data-testid="stSidebar"] * {
+        color: var(--text-main) !important;
     }
     </style>
     """,
