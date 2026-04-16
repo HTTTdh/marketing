@@ -5,6 +5,7 @@ Handles data validation, cleaning, and scaling.
 
 from __future__ import annotations
 
+import io
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -61,14 +62,11 @@ def handle_missing(df: pd.DataFrame) -> Tuple[pd.DataFrame, dict]:
 # ---------------------------------------------------------------------------
 
 @st.cache_data(show_spinner=False)
-def scale_features(df_json: str, feature_cols: list) -> Tuple[np.ndarray, object]:
+def scale_features(df: pd.DataFrame, feature_cols: list[str]) -> Tuple[np.ndarray, object]:
     """
     StandardScaler on selected columns.
-    Accepts JSON-serialised df so that st.cache_data can hash it.
     Returns (scaled_array, scaler).
     """
-    import io as _io
-    df = pd.read_json(_io.StringIO(df_json))
     scaler = StandardScaler()
     scaled = scaler.fit_transform(df[feature_cols])
     return scaled, scaler
@@ -78,19 +76,26 @@ def scale_features(df_json: str, feature_cols: list) -> Tuple[np.ndarray, object
 # File parsing
 # ---------------------------------------------------------------------------
 
+@st.cache_data(show_spinner=False)
+def _parse_upload_cached(file_name: str, file_bytes: bytes) -> pd.DataFrame:
+    """Cached parser for uploaded file bytes."""
+    lower_name = file_name.lower()
+
+    if lower_name.endswith(".csv"):
+        return pd.read_csv(io.BytesIO(file_bytes))
+    if lower_name.endswith((".xlsx", ".xls")):
+        return pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+    raise ValueError(f"Unsupported file type: '{file_name}'. Please upload .csv or .xlsx.")
+
+
 def parse_upload(file) -> pd.DataFrame:
     """
     Parse an uploaded file (.csv or .xlsx) and return a DataFrame.
     Raises ValueError with a user-friendly message on failure.
     """
-    name: str = file.name.lower()
     try:
-        if name.endswith(".csv"):
-            df = pd.read_csv(file)
-        elif name.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(file, engine="openpyxl")
-        else:
-            raise ValueError(f"Unsupported file type: '{file.name}'. Please upload .csv or .xlsx.")
+        file_bytes = file.getvalue()
+        df = _parse_upload_cached(file.name, file_bytes)
     except Exception as exc:
         raise ValueError(f"Could not read file '{file.name}': {exc}") from exc
 

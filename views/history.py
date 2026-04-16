@@ -120,7 +120,7 @@ def render():
                     st.subheader("PCA — Chiếu cụm 2D")
                     try:
                         fig_pca = plot_pca(pca_coords, labels)
-                        st.plotly_chart(fig_pca, width="stretch")
+                        st.pyplot(fig_pca, width="stretch")
                     except Exception as e:
                         st.warning(f"Không thể hiển thị PCA: {e}")
 

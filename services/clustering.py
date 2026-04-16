@@ -28,10 +28,21 @@ def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> 
     """
     if k_range is None:
         k_range = list(range(2, 11))
+    sample_data = scaled_data
+    if len(scaled_data) > 5000:
+        rng = np.random.default_rng(42)
+        sample_idx = rng.choice(len(scaled_data), size=5000, replace=False)
+        sample_data = scaled_data[sample_idx]
     inertias: List[float] = []
     for k in k_range:
-        km = KMeans(n_clusters=k, init="k-means++", n_init=10, random_state=42)
-        km.fit(scaled_data)
+        km = KMeans(
+            n_clusters=k,
+            init="k-means++",
+            n_init="auto",
+            random_state=42,
+            algorithm="elkan",
+        )
+        km.fit(sample_data)
         inertias.append(float(km.inertia_))
     return k_range, inertias
 
@@ -111,6 +122,32 @@ def compute_pca(scaled_data: np.ndarray, n_components: int = 2) -> np.ndarray:
     """Reduce dimensionality to n_components with PCA."""
     pca = PCA(n_components=n_components)
     return pca.fit_transform(scaled_data)
+
+
+@st.cache_data(show_spinner=False)
+def compute_kmeans_pca_projection(
+    scaled_data: np.ndarray,
+    n_clusters: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Reproduce the user's PCA + KMeans plotting flow:
+      - PCA on scaled data to 2D
+      - KMeans labels on scaled data
+      - Project KMeans centers into PCA space
+    Returns (pca_coords, cluster_labels, centroid_coords).
+    """
+    pca = PCA(n_components=2)
+    pca_coords = pca.fit_transform(scaled_data)
+
+    kmeans = KMeans(
+        n_clusters=n_clusters,
+        init="k-means++",
+        random_state=42,
+        n_init=10,
+    )
+    cluster_labels = kmeans.fit_predict(scaled_data)
+    centroid_coords = pca.transform(kmeans.cluster_centers_)
+    return pca_coords, cluster_labels, centroid_coords
 
 
 # ---------------------------------------------------------------------------

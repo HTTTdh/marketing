@@ -27,6 +27,7 @@ from services.clustering import (
     cluster_profiles,
     compute_silhouette,
     compute_pca,
+    compute_kmeans_pca_projection,
     detect_anomalies,
     compute_elbow,
 )
@@ -233,10 +234,24 @@ def render(api_key: str | None = None):
         )
 
     show_anomalies = st.checkbox("🔍 Phát hiện bất thường (IsolationForest)", value=False)
+    enable_ai_insights = st.checkbox(
+        "🤖 Tạo insight AI / rule-based",
+        value=False,
+        help="Tắt mục này nếu bạn chỉ muốn phân cụm và vẽ biểu đồ để chạy nhanh hơn.",
+    )
 
     if len(feature_cols) < 2:
         st.warning("⚠️ Vui lòng chọn ít nhất 2 đặc trưng.")
         return
+
+    # Bỏ các cột ID và Tuổi khỏi biểu đồ phân tán / hộp nếu còn đủ dữ liệu
+    _id_age_keywords = ["id", "tuoi", "age", "mã", "ma", "stt"]
+    scatter_cols = [
+        c for c in feature_cols
+        if not any(kw in c.lower() for kw in _id_age_keywords)
+    ]
+    if len(scatter_cols) < 2:
+        scatter_cols = feature_cols
 
     # -----------------------------------------------------------------------
     # Elbow Method — hỗ trợ chọn k tối ưu
@@ -253,7 +268,7 @@ def render(api_key: str | None = None):
         else:
             if st.button("🔍 Tính Elbow", key="btn_elbow"):
                 with st.spinner("Đang tính Elbow Method…"):
-                    _scaled_elbow, _ = scale_features(df_clean.to_json(), feature_cols)
+                    _scaled_elbow, _ = scale_features(df_clean, feature_cols)
                     _k_vals, _inertias = compute_elbow(_scaled_elbow, list(range(int(k_min_elbow), int(k_max_elbow) + 1)))
                 st.session_state["elbow_result"] = {"k_vals": _k_vals, "inertias": _inertias}
 
@@ -266,7 +281,7 @@ def render(api_key: str | None = None):
                     key="elbow_sel_k",
                 )
                 fig_elbow = plot_elbow(_er["k_vals"], _er["inertias"], recommended_k=int(_rec_k))
-                st.plotly_chart(fig_elbow, use_container_width=True)
+                st.pyplot(fig_elbow, use_container_width=True)
                 st.caption("💡 Sau khi xác định k từ biểu đồ trên, hãy đặt **Số lượng cụm** ở slider bên trên và nhấn Chạy phân tích.")
 
     # -------------------------------------------------------------------------
@@ -284,6 +299,7 @@ def render(api_key: str | None = None):
         "n_clusters": int(n_clusters),
         "linkage_method": linkage_method,
         "show_anomalies": bool(show_anomalies),
+        "enable_ai_insights": bool(enable_ai_insights),
     }
 
     has_cached_result = "analysis_result" in st.session_state
@@ -297,7 +313,7 @@ def render(api_key: str | None = None):
         with st.spinner("Đang chạy phân tích…"):
             status.text("⚙️ Đang chuẩn hóa đặc trưng…")
             progress.progress(10, "Đang chuẩn hóa đặc trưng…")
-            scaled, _ = scale_features(df_clean.to_json(), feature_cols)
+            scaled, _ = scale_features(df_clean, feature_cols)
 
             status.text("🔗 Đang tính toán ma trận liên kết…")
             progress.progress(20, "Đang tính toán liên kết…")
@@ -310,6 +326,18 @@ def render(api_key: str | None = None):
             status.text("📐 Đang tính toán PCA…")
             progress.progress(48, "Đang chiếu PCA…")
             pca_coords = compute_pca(scaled)
+            if scatter_cols != feature_cols:
+                scatter_scaled, _ = scale_features(df_clean, scatter_cols)
+                pca_plot_coords, pca_plot_labels, pca_plot_centroids = compute_kmeans_pca_projection(
+                    scatter_scaled,
+                    int(n_clusters),
+                )
+            else:
+                pca_plot_coords = pca_coords
+                _, pca_plot_labels, pca_plot_centroids = compute_kmeans_pca_projection(
+                    scaled,
+                    int(n_clusters),
+                )
 
             anomaly_mask = None
             if show_anomalies:
@@ -324,27 +352,22 @@ def render(api_key: str | None = None):
             profiles = cluster_profiles(df_result, "Cluster")
             silhouette = compute_silhouette(scaled, labels)
 
-            # Xác định scatter_cols: bỏ các cột ID và Tuổi khỏi biểu đồ phân tán / hộp
-            _id_age_keywords = ["id", "tuoi", "age", "mã", "ma", "stt"]
-            scatter_cols = [
-                c for c in feature_cols
-                if not any(kw in c.lower() for kw in _id_age_keywords)
-            ]
-            if len(scatter_cols) < 2:
-                scatter_cols = feature_cols  # fallback nếu lọc xong còn ít hơn 2 cột
+            ai_insights = {}
+            overall_analysis = {}
+            if enable_ai_insights:
+                status.text("🤖 Đang tạo thông tin chi tiết từ AI cho mỗi cụm…")
+                progress.progress(75, "Phân tích AI cho mỗi cụm…")
+                ai_insights = analyze_all_clusters(profiles, api_key=api_key)
 
-            status.text("🤖 Đang tạo thông tin chi tiết từ AI cho mỗi cụm…")
-            progress.progress(75, "Phân tích AI cho mỗi cụm…")
-            ai_insights = analyze_all_clusters(profiles, api_key=api_key)
-
-            # NEW: overall cross-cluster analysis
-            status.text("🧠 Đang tạo phân tích tổng thể liên cụm…")
-            progress.progress(90, "Phân tích AI tổng thể…")
-            overall_analysis = analyze_overall(
-                profiles,
-                ai_insights,
-                api_key=api_key,
-            )
+                status.text("🧠 Đang tạo phân tích tổng thể liên cụm…")
+                progress.progress(90, "Phân tích AI tổng thể…")
+                overall_analysis = analyze_overall(
+                    profiles,
+                    ai_insights,
+                    api_key=api_key,
+                )
+            else:
+                progress.progress(90, "Bỏ qua bước AI, hoàn tất trực quan hóa…")
 
             progress.progress(100, "Hoàn thành!")
             status.empty()
@@ -358,6 +381,9 @@ def render(api_key: str | None = None):
             "labels": labels,
             "linkage_matrix": linkage_matrix,
             "pca_coords": pca_coords,
+            "pca_plot_coords": pca_plot_coords,
+            "pca_plot_labels": pca_plot_labels,
+            "pca_plot_centroids": pca_plot_centroids,
             "anomaly_mask": anomaly_mask,
             "silhouette": silhouette,
             "ai_insights": ai_insights,
@@ -377,6 +403,9 @@ def render(api_key: str | None = None):
     labels = cached_result["labels"]
     linkage_matrix = cached_result.get("linkage_matrix")
     pca_coords = cached_result["pca_coords"]
+    pca_plot_coords = cached_result.get("pca_plot_coords", pca_coords)
+    pca_plot_labels = cached_result.get("pca_plot_labels", labels)
+    pca_plot_centroids = cached_result.get("pca_plot_centroids")
     anomaly_mask = cached_result["anomaly_mask"]
     silhouette = cached_result["silhouette"]
     ai_insights = cached_result["ai_insights"]
@@ -421,15 +450,9 @@ def render(api_key: str | None = None):
 
     with tab_pca:
         st.subheader("PCA — Chiếu cụm 2D (chỉ dùng đặc trưng tiêu dùng, bỏ ID & Tuổi)")
-        # Tính lại PCA chỉ trên scatter_cols nếu khác feature_cols
-        if scatter_cols != feature_cols:
-            _sc_scaled, _ = scale_features(df_result.to_json(), scatter_cols)
-            _pca_coords_sc = compute_pca(_sc_scaled)
-        else:
-            _pca_coords_sc = pca_coords
-        fig_pca = plot_pca(_pca_coords_sc, labels, anomaly_mask)
-        st.plotly_chart(fig_pca, use_container_width=True)
-        st.caption(f"📌 Các đặc trưng dùng để vẽ: {', '.join(scatter_cols)}")
+        fig_pca = plot_pca(pca_plot_coords, pca_plot_labels, pca_plot_centroids, anomaly_mask)
+        st.pyplot(fig_pca, use_container_width=True)
+        st.caption(f"📌 Biểu đồ này dùng đúng flow PCA + KMeans trên các cột: {', '.join(scatter_cols)}")
 
     with tab_heat:
         st.subheader("Biểu đồ nhiệt Hồ sơ Đặc trưng")
@@ -458,7 +481,9 @@ def render(api_key: str | None = None):
     st.markdown("---")
     st.subheader("🤖 Bước 7 — Thông tin chi tiết về cụm từ AI")
 
-    if not os.getenv("OPENAI_API_KEY"):
+    if not enable_ai_insights:
+        st.info("Đã tắt phần insight AI/rule-based để ưu tiên tốc độ. Bật checkbox `Tạo insight AI / rule-based` ở Bước 3 nếu bạn cần phần diễn giải.")
+    elif not os.getenv("OPENAI_API_KEY"):
         st.info("💡 **Mẹo:** Đặt `OPENAI_API_KEY` trong tệp `.env` của bạn để có thông tin chi tiết từ OpenAI thực sự. Hiện đang hiển thị phân tích dựa trên quy tắc.")
 
     # --- 7A: Overall Cross-Cluster Analysis (NEW) ---
@@ -498,24 +523,25 @@ def render(api_key: str | None = None):
         st.markdown("---")
 
     # --- 7B: Per-Cluster Insights (existing) ---
-    st.markdown("### 📋 Phân tích chi tiết mỗi cụm")
-    for cluster_id, insight in ai_insights.items():
-        segment_name = insight.get("segment_name", f"Cụm {cluster_id}")
-        with st.expander(f"🔵 Cụm {cluster_id}: **{segment_name}**", expanded=True):
-            col_a, col_b = st.columns([1, 1])
-            with col_a:
-                st.markdown("**📝 Mô tả**")
-                st.write(insight.get("description", ""))
-                st.markdown("**🧠 Thông tin chi tiết về hành vi**")
-                st.write(insight.get("behavior_insight", ""))
-            with col_b:
-                st.markdown("**🎯 Chiến lược tiếp thị**")
-                st.write(insight.get("marketing_strategy", ""))
-                campaigns = insight.get("suggested_campaigns", [])
-                if campaigns:
-                    st.markdown("**📣 Các chiến dịch được đề xuất**")
-                    for c in campaigns:
-                        st.markdown(f"  - {c}")
+    if ai_insights:
+        st.markdown("### 📋 Phân tích chi tiết mỗi cụm")
+        for cluster_id, insight in ai_insights.items():
+            segment_name = insight.get("segment_name", f"Cụm {cluster_id}")
+            with st.expander(f"🔵 Cụm {cluster_id}: **{segment_name}**", expanded=True):
+                col_a, col_b = st.columns([1, 1])
+                with col_a:
+                    st.markdown("**📝 Mô tả**")
+                    st.write(insight.get("description", ""))
+                    st.markdown("**🧠 Thông tin chi tiết về hành vi**")
+                    st.write(insight.get("behavior_insight", ""))
+                with col_b:
+                    st.markdown("**🎯 Chiến lược tiếp thị**")
+                    st.write(insight.get("marketing_strategy", ""))
+                    campaigns = insight.get("suggested_campaigns", [])
+                    if campaigns:
+                        st.markdown("**📣 Các chiến dịch được đề xuất**")
+                        for c in campaigns:
+                            st.markdown(f"  - {c}")
 
     # -------------------------------------------------------------------------
     # STEP 8: Save to Database

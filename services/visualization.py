@@ -17,62 +17,32 @@ import plotly.graph_objects as go
 from scipy.cluster.hierarchy import dendrogram
 from typing import Optional
 # ---------------------------------------------------------------------------
-# Elbow Method chart (Plotly)
+# Elbow Method chart (matplotlib)
 # ---------------------------------------------------------------------------
 
-def plot_elbow(k_values: list, inertia_values: list, recommended_k: int | None = None) -> go.Figure:
+def plot_elbow(k_values: list, inertia_values: list, recommended_k: int | None = None) -> plt.Figure:
     """
-    Line chart of KMeans inertia vs number of clusters (Elbow Method).
-    Optionally marks the recommended k with a vertical dashed line.
+    Return a matplotlib elbow chart matching the reference style.
     """
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=k_values,
-        y=inertia_values,
-        mode="lines+markers",
-        line=dict(color="#7C83FD", width=3),
-        marker=dict(size=9, color="#FFA6C9", line=dict(color="white", width=1.5)),
-        name="Inertia (WCSS)",
-        hovertemplate="k = %{x}<br>Inertia = %{y:,.1f}<extra></extra>",
-    ))
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(k_values, inertia_values, marker="o", linewidth=1.8, color="#1f77b4")
+    ax.set_title("Elbow Method")
+    ax.set_xlabel("Number of clusters")
+    ax.set_ylabel("WCSS")
+    ax.grid(True, alpha=0.45)
 
     if recommended_k is not None and recommended_k in k_values:
         idx = k_values.index(recommended_k)
-        fig.add_vline(
-            x=recommended_k,
-            line=dict(color="#FFD700", width=2, dash="dash"),
-            annotation_text=f"  k = {recommended_k} (gợi ý)",
-            annotation_font_color="#FFD700",
-            annotation_position="top right",
+        ax.scatter(
+            [recommended_k],
+            [inertia_values[idx]],
+            s=140,
+            color="orange",
+            edgecolors="black",
+            zorder=3,
         )
-        fig.add_trace(go.Scatter(
-            x=[recommended_k],
-            y=[inertia_values[idx]],
-            mode="markers",
-            marker=dict(size=15, color="#FFD700", symbol="star", line=dict(color="white", width=1)),
-            name=f"k = {recommended_k} (gợi ý)",
-            hovertemplate=f"k tối ưu gợi ý = {recommended_k}<extra></extra>",
-        ))
 
-    fig.update_layout(
-        title="Phương pháp Elbow — Chọn số cụm tối ưu (k)",
-        xaxis=dict(
-            title="Số cụm k",
-            tickmode="linear",
-            tick0=k_values[0],
-            dtick=1,
-            color="white",
-            gridcolor="#333",
-        ),
-        yaxis=dict(title="Inertia (WCSS)", color="white", gridcolor="#333"),
-        template="plotly_dark",
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
-        font_color="white",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        hovermode="x unified",
-    )
+    plt.tight_layout()
     return fig
 
 
@@ -111,50 +81,62 @@ def plot_dendrogram(
 
 
 # ---------------------------------------------------------------------------
-# PCA Scatter (Plotly)
+# PCA Scatter (matplotlib)
 # ---------------------------------------------------------------------------
 
 def plot_pca(
     pca_coords: np.ndarray,
     labels: np.ndarray,
+    centroid_coords: Optional[np.ndarray] = None,
     anomaly_mask: Optional[np.ndarray] = None,
-) -> go.Figure:
-    """2D PCA scatter coloured by cluster, with optional anomaly overlay."""
-    df = pd.DataFrame(
-        {"PC1": pca_coords[:, 0], "PC2": pca_coords[:, 1], "Cluster": labels.astype(str)}
-    )
-    if anomaly_mask is not None:
-        df["Anomaly"] = anomaly_mask
+) -> plt.Figure:
+    """2D PCA scatter using the same logic as the user's PCA + KMeans code."""
+    fig, ax = plt.subplots(figsize=(12, 5))
 
-    fig = px.scatter(
-        df,
-        x="PC1",
-        y="PC2",
-        color="Cluster",
-        title="PCA - Cum Khach hang",
-        template="plotly_dark",
-        color_discrete_sequence=px.colors.qualitative.Bold,
-        hover_data={"PC1": ":.3f", "PC2": ":.3f", "Cluster": True},
-    )
+    unique_labels = np.unique(labels)
+    palette = ["red", "#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b"]
 
-    if anomaly_mask is not None:
-        anomaly_df = df[df["Anomaly"]]
-        fig.add_trace(
-            go.Scatter(
-                x=anomaly_df["PC1"],
-                y=anomaly_df["PC2"],
-                mode="markers",
-                marker=dict(symbol="x", size=10, color="red", line=dict(width=2)),
-                name="Bat thuong",
-            )
+    for i, cluster_id in enumerate(unique_labels):
+        cluster_mask = labels == cluster_id
+        ax.scatter(
+            pca_coords[cluster_mask, 0],
+            pca_coords[cluster_mask, 1],
+            s=35,
+            color=palette[i % len(palette)],
+            label=str(cluster_id),
+            alpha=0.8,
+            edgecolors="white",
+            linewidths=0.6,
         )
 
-    fig.update_layout(
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
-        font_color="white",
-        legend_title_text="Cum",
-    )
+    if centroid_coords is not None and len(centroid_coords) > 0:
+        ax.scatter(
+            centroid_coords[:, 0],
+            centroid_coords[:, 1],
+            c="black",
+            s=200,
+            marker="X",
+            linewidths=1.5,
+            edgecolors="black",
+            zorder=4,
+        )
+
+    if anomaly_mask is not None and anomaly_mask.any():
+        ax.scatter(
+            pca_coords[anomaly_mask, 0],
+            pca_coords[anomaly_mask, 1],
+            s=70,
+            facecolors="none",
+            edgecolors="black",
+            linewidths=1.2,
+            label="Anomaly",
+            zorder=5,
+        )
+
+    ax.set_title("PCA Clustering")
+    ax.grid(True, alpha=0.45)
+    ax.legend(title=None)
+    plt.tight_layout()
     return fig
 
 
