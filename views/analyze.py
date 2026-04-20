@@ -27,7 +27,7 @@ from services.clustering import (
     cluster_profiles,
     compute_silhouette,
     compute_pca,
-    compute_kmeans_pca_projection,
+    compute_fcm_pca_projection,
     detect_anomalies,
     compute_elbow,
 )
@@ -261,8 +261,8 @@ def render(api_key: str | None = None):
             "Biểu đồ Elbow Method tính **Inertia (WCSS)** với KMeans cho từng giá trị k. "
             "Chọn k tại **điểm gấp khúc** (elbow) — nơi đường cong bắt đầu phẳng lại."
         )
-        k_min_elbow = st.number_input("k tối thiểu", min_value=2, max_value=8, value=2, key="k_min_elbow")
-        k_max_elbow = st.number_input("k tối đa", min_value=3, max_value=15, value=10, key="k_max_elbow")
+        k_min_elbow = st.number_input("k tối thiểu", min_value=1, max_value=8, value=1, key="k_min_elbow")
+        k_max_elbow = st.number_input("k tối đa", min_value=3, max_value=20, value=14, key="k_max_elbow")
         if k_max_elbow <= k_min_elbow:
             st.warning("k tối đa phải lớn hơn k tối thiểu.")
         else:
@@ -328,13 +328,13 @@ def render(api_key: str | None = None):
             pca_coords = compute_pca(scaled)
             if scatter_cols != feature_cols:
                 scatter_scaled, _ = scale_features(df_clean, scatter_cols)
-                pca_plot_coords, pca_plot_labels, pca_plot_centroids = compute_kmeans_pca_projection(
+                pca_plot_coords, pca_plot_labels, pca_plot_centroids = compute_fcm_pca_projection(
                     scatter_scaled,
                     int(n_clusters),
                 )
             else:
                 pca_plot_coords = pca_coords
-                _, pca_plot_labels, pca_plot_centroids = compute_kmeans_pca_projection(
+                _, pca_plot_labels, pca_plot_centroids = compute_fcm_pca_projection(
                     scaled,
                     int(n_clusters),
                 )
@@ -449,10 +449,10 @@ def render(api_key: str | None = None):
         st.pyplot(fig_dend, use_container_width=True)
 
     with tab_pca:
-        st.subheader("PCA — Chiếu cụm 2D (chỉ dùng đặc trưng tiêu dùng, bỏ ID & Tuổi)")
+        st.subheader("Fuzzy C-Means — Chiếu cụm 2D (chỉ dùng đặc trưng tiêu dùng, bỏ ID & Tuổi)")
         fig_pca = plot_pca(pca_plot_coords, pca_plot_labels, pca_plot_centroids, anomaly_mask)
         st.pyplot(fig_pca, use_container_width=True)
-        st.caption(f"📌 Biểu đồ này dùng đúng flow PCA + KMeans trên các cột: {', '.join(scatter_cols)}")
+        st.caption(f"📌 Biểu đồ dùng flow PCA + Fuzzy C-Means trên các cột: {', '.join(scatter_cols)}")
 
     with tab_heat:
         st.subheader("Biểu đồ nhiệt Hồ sơ Đặc trưng")

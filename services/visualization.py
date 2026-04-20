@@ -25,11 +25,12 @@ def plot_elbow(k_values: list, inertia_values: list, recommended_k: int | None =
     Return a matplotlib elbow chart matching the reference style.
     """
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(k_values, inertia_values, marker="o", linewidth=1.8, color="#1f77b4")
+    fig.patch.set_facecolor("#e5e5e5")
+    ax.set_facecolor("white")
+    ax.plot(k_values, inertia_values, marker="o", linewidth=1.6, color="#1f77b4", markersize=6)
     ax.set_title("Elbow Method")
     ax.set_xlabel("Number of clusters")
     ax.set_ylabel("WCSS")
-    ax.grid(True, alpha=0.45)
 
     if recommended_k is not None and recommended_k in k_values:
         idx = k_values.index(recommended_k)
@@ -91,35 +92,35 @@ def plot_pca(
     centroid_coords: Optional[np.ndarray] = None,
     anomaly_mask: Optional[np.ndarray] = None,
 ) -> plt.Figure:
-    """2D PCA scatter using the same logic as the user's PCA + KMeans code."""
-    fig, ax = plt.subplots(figsize=(12, 5))
+    """2D PCA scatter for Fuzzy C-Means clustering."""
+    fig, ax = plt.subplots(figsize=(9, 6))
+    fig.patch.set_facecolor("#e5e5e5")
+    ax.set_facecolor("white")
 
     unique_labels = np.unique(labels)
-    palette = ["red", "#1f77b4", "#2ca02c", "#ff7f0e", "#9467bd", "#8c564b"]
+    palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#17becf"]
 
     for i, cluster_id in enumerate(unique_labels):
         cluster_mask = labels == cluster_id
         ax.scatter(
             pca_coords[cluster_mask, 0],
             pca_coords[cluster_mask, 1],
-            s=35,
+            s=40,
             color=palette[i % len(palette)],
-            label=str(cluster_id),
-            alpha=0.8,
-            edgecolors="white",
-            linewidths=0.6,
+            label=f"Cluster {int(cluster_id) + 1}",
+            alpha=0.85,
         )
 
     if centroid_coords is not None and len(centroid_coords) > 0:
         ax.scatter(
             centroid_coords[:, 0],
             centroid_coords[:, 1],
-            c="black",
-            s=200,
+            c="#b22222",
+            s=180,
             marker="X",
-            linewidths=1.5,
-            edgecolors="black",
-            zorder=4,
+            linewidths=2.5,
+            label="Centroids",
+            zorder=5,
         )
 
     if anomaly_mask is not None and anomaly_mask.any():
@@ -131,12 +132,13 @@ def plot_pca(
             edgecolors="black",
             linewidths=1.2,
             label="Anomaly",
-            zorder=5,
+            zorder=6,
         )
 
-    ax.set_title("PCA Clustering")
-    ax.grid(True, alpha=0.45)
-    ax.legend(title=None)
+    ax.set_title("Fuzzy C-Means Clustering (PCA Visualization)")
+    ax.set_ylabel("PCA 2")
+    ax.grid(True, alpha=0.35)
+    ax.legend(loc="upper right", framealpha=0.9)
     plt.tight_layout()
     return fig
 

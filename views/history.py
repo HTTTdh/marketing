@@ -10,6 +10,8 @@ import pandas as pd
 import streamlit as st
 
 from services.database import list_analyses, delete_analysis, init_db
+from services.preprocessing import scale_features
+from services.clustering import compute_fcm_pca_projection
 from services.visualization import (
     plot_dendrogram,
     plot_pca,
@@ -18,6 +20,9 @@ from services.visualization import (
     plot_cluster_comparison,
     plot_feature_boxplots,
 )
+
+
+_ID_AGE_KEYWORDS = ["id", "tuoi", "age", "mã", "ma", "stt"]
 
 
 def render():
@@ -117,10 +122,22 @@ def render():
                         st.warning(f"Không thể hiển thị biểu đồ cây: {e}")
 
                 with tab_pca:
-                    st.subheader("PCA — Chiếu cụm 2D")
+                    st.subheader("Fuzzy C-Means — Chiếu cụm 2D")
                     try:
-                        fig_pca = plot_pca(pca_coords, labels)
+                        scatter_cols = [
+                            c for c in feature_cols
+                            if not any(kw in c.lower() for kw in _ID_AGE_KEYWORDS)
+                        ]
+                        if len(scatter_cols) < 2:
+                            scatter_cols = feature_cols
+                        scatter_scaled, _ = scale_features(df_result, scatter_cols)
+                        fcm_coords, fcm_labels, fcm_centroids = compute_fcm_pca_projection(
+                            scatter_scaled,
+                            int(rec["number_of_clusters"]),
+                        )
+                        fig_pca = plot_pca(fcm_coords, fcm_labels, fcm_centroids)
                         st.pyplot(fig_pca, width="stretch")
+                        st.caption(f"📌 PCA + Fuzzy C-Means trên các cột: {', '.join(scatter_cols)}")
                     except Exception as e:
                         st.warning(f"Không thể hiển thị PCA: {e}")
 

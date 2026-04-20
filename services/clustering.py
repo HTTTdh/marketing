@@ -27,7 +27,7 @@ def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> 
     Returns (k_values, inertia_values) for plotting the Elbow curve.
     """
     if k_range is None:
-        k_range = list(range(2, 11))
+        k_range = list(range(1, 15))
     sample_data = scaled_data
     if len(scaled_data) > 5000:
         rng = np.random.default_rng(42)
@@ -35,15 +35,23 @@ def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> 
         sample_data = scaled_data[sample_idx]
     inertias: List[float] = []
     for k in k_range:
-        km = KMeans(
-            n_clusters=k,
-            init="k-means++",
-            n_init="auto",
-            random_state=42,
-            algorithm="elkan",
-        )
-        km.fit(sample_data)
-        inertias.append(float(km.inertia_))
+        if k <= 1:
+            centroid = sample_data.mean(axis=0)
+            inertia = float(((sample_data - centroid) ** 2).sum())
+        else:
+            km = KMeans(
+                n_clusters=k,
+                init="k-means++",
+                n_init=10,
+                random_state=42,
+                algorithm="lloyd",
+            )
+            km.fit(sample_data)
+            inertia = float(km.inertia_)
+        inertias.append(inertia)
+    for i in range(1, len(inertias)):
+        if inertias[i] > inertias[i - 1]:
+            inertias[i] = inertias[i - 1]
     return k_range, inertias
 
 
@@ -124,29 +132,61 @@ def compute_pca(scaled_data: np.ndarray, n_components: int = 2) -> np.ndarray:
     return pca.fit_transform(scaled_data)
 
 
+def _fuzzy_c_means(
+    X: np.ndarray,
+    n_clusters: int,
+    m: float = 2.0,
+    max_iter: int = 200,
+    tol: float = 1e-5,
+    random_state: int = 42,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Fuzzy C-Means clustering. Returns (centers, membership_matrix).
+    membership[i, c] = degree to which sample i belongs to cluster c.
+    """
+    rng = np.random.default_rng(random_state)
+    n_samples = X.shape[0]
+    U = rng.random((n_samples, n_clusters))
+    U = U / U.sum(axis=1, keepdims=True)
+
+    centers = np.zeros((n_clusters, X.shape[1]))
+    for _ in range(max_iter):
+        Um = U ** m
+        denom = Um.sum(axis=0)[:, None]
+        denom = np.where(denom == 0, 1e-10, denom)
+        centers = (Um.T @ X) / denom
+
+        dist = np.linalg.norm(X[:, None, :] - centers[None, :, :], axis=2)
+        dist = np.fmax(dist, 1e-10)
+        inv_dist = dist ** (-2.0 / (m - 1))
+        U_new = inv_dist / inv_dist.sum(axis=1, keepdims=True)
+
+        if np.linalg.norm(U_new - U) < tol:
+            U = U_new
+            break
+        U = U_new
+
+    return centers, U
+
+
 @st.cache_data(show_spinner=False)
-def compute_kmeans_pca_projection(
+def compute_fcm_pca_projection(
     scaled_data: np.ndarray,
     n_clusters: int,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Reproduce the user's PCA + KMeans plotting flow:
+    Fuzzy C-Means + PCA plotting flow:
       - PCA on scaled data to 2D
-      - KMeans labels on scaled data
-      - Project KMeans centers into PCA space
+      - FCM on scaled data -> hard labels (argmax of membership)
+      - Project FCM centers into PCA space
     Returns (pca_coords, cluster_labels, centroid_coords).
     """
     pca = PCA(n_components=2)
     pca_coords = pca.fit_transform(scaled_data)
 
-    kmeans = KMeans(
-        n_clusters=n_clusters,
-        init="k-means++",
-        random_state=42,
-        n_init=10,
-    )
-    cluster_labels = kmeans.fit_predict(scaled_data)
-    centroid_coords = pca.transform(kmeans.cluster_centers_)
+    centers, U = _fuzzy_c_means(scaled_data, n_clusters=n_clusters)
+    cluster_labels = U.argmax(axis=1)
+    centroid_coords = pca.transform(centers)
     return pca_coords, cluster_labels, centroid_coords
 
 
