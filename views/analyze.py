@@ -224,8 +224,24 @@ def render(api_key: str | None = None):
             default=numeric_cols[:min(len(numeric_cols), 6)],
             help="Chọn 2+ cột số.",
         )
+
+    suggested_k = 3
+    if len(feature_cols) >= 2:
+        try:
+            _scaled_auto, _ = scale_features(df_clean, feature_cols)
+            _k_vals_auto, _inertias_auto = compute_elbow(_scaled_auto, list(range(1, 11)))
+            suggested_k = max(2, min(int(detect_elbow_k(_k_vals_auto, _inertias_auto)), 10))
+        except Exception:
+            suggested_k = 3
+
     with col2:
-        n_clusters = st.slider("Số lượng cụm", min_value=2, max_value=10, value=3)
+        n_clusters = st.slider(
+            "Số lượng cụm",
+            min_value=2,
+            max_value=10,
+            value=suggested_k,
+            help=f"Giá trị gợi ý tự động bằng Elbow Method: k = {suggested_k}. Bạn có thể điều chỉnh tuỳ ý.",
+        )
     with col3:
         linkage_method = st.selectbox(
             "Phương pháp liên kết",
@@ -233,6 +249,9 @@ def render(api_key: str | None = None):
             index=0,
             help="'ward' giảm thiểu phương sai trong cụm (khuyến nghị).",
         )
+
+    if len(feature_cols) >= 2:
+        st.caption(f"💡 Gợi ý **k = {suggested_k}** (tự động từ Elbow Method trên các đặc trưng đã chọn).")
 
     show_anomalies = st.checkbox("🔍 Phát hiện bất thường (IsolationForest)", value=False)
     enable_ai_insights = st.checkbox(

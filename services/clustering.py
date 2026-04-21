@@ -57,21 +57,31 @@ def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> 
 
 def detect_elbow_k(k_values: List[int], inertias: List[float], threshold: float = 0.5) -> int:
     """
-    Detect optimal k using cumulative WCSS reduction:
-    smallest k that captures at least `threshold` (default 50%) of the
-    total achievable reduction between k_min and k_max.
+    Detect optimal k using the max-distance-to-chord method (kneedle-style):
+    pick the k whose (k, WCSS) point is farthest from the straight line
+    connecting (k_min, WCSS_min) and (k_max, WCSS_max).
     """
-    if len(k_values) < 2:
+    if len(k_values) < 3:
         return int(k_values[0])
+    xs = np.array(k_values, dtype=float)
     ys = np.array(inertias, dtype=float)
-    total_reduction = ys[0] - ys[-1]
-    if total_reduction <= 0:
+
+    if ys[0] - ys[-1] <= 0:
         return int(k_values[0])
-    for i, k in enumerate(k_values):
-        cum = (ys[0] - ys[i]) / total_reduction
-        if cum >= threshold:
-            return int(k)
-    return int(k_values[-1])
+
+    x1, y1 = xs[0], ys[0]
+    x2, y2 = xs[-1], ys[-1]
+    dx, dy = x2 - x1, y2 - y1
+    norm = float(np.hypot(dx, dy))
+    if norm == 0:
+        return int(k_values[0])
+
+    distances = np.abs(dy * xs - dx * ys + x2 * y1 - y2 * x1) / norm
+    distances[0] = 0.0
+    distances[-1] = 0.0
+
+    best_idx = int(np.argmax(distances))
+    return int(k_values[best_idx])
 
 
 # ---------------------------------------------------------------------------
