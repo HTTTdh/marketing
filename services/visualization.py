@@ -24,25 +24,11 @@ def plot_elbow(k_values: list, inertia_values: list, recommended_k: int | None =
     """
     Return a matplotlib elbow chart matching the reference style.
     """
-    fig, ax = plt.subplots(figsize=(7, 5))
-    fig.patch.set_facecolor("#e5e5e5")
-    ax.set_facecolor("white")
-    ax.plot(k_values, inertia_values, marker="o", linewidth=1.6, color="#1f77b4", markersize=6)
+    fig, ax = plt.subplots()
+    ax.plot(k_values, inertia_values, marker="o")
     ax.set_title("Elbow Method")
     ax.set_xlabel("Number of clusters")
     ax.set_ylabel("WCSS")
-
-    if recommended_k is not None and recommended_k in k_values:
-        idx = k_values.index(recommended_k)
-        ax.scatter(
-            [recommended_k],
-            [inertia_values[idx]],
-            s=140,
-            color="orange",
-            edgecolors="black",
-            zorder=3,
-        )
-
     plt.tight_layout()
     return fig
 

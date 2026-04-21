@@ -55,6 +55,25 @@ def compute_elbow(scaled_data: np.ndarray, k_range: List[int] | None = None) -> 
     return k_range, inertias
 
 
+def detect_elbow_k(k_values: List[int], inertias: List[float], threshold: float = 0.5) -> int:
+    """
+    Detect optimal k using cumulative WCSS reduction:
+    smallest k that captures at least `threshold` (default 50%) of the
+    total achievable reduction between k_min and k_max.
+    """
+    if len(k_values) < 2:
+        return int(k_values[0])
+    ys = np.array(inertias, dtype=float)
+    total_reduction = ys[0] - ys[-1]
+    if total_reduction <= 0:
+        return int(k_values[0])
+    for i, k in enumerate(k_values):
+        cum = (ys[0] - ys[i]) / total_reduction
+        if cum >= threshold:
+            return int(k)
+    return int(k_values[-1])
+
+
 # ---------------------------------------------------------------------------
 # Linkage (for dendrogram)
 # ---------------------------------------------------------------------------
@@ -75,8 +94,13 @@ def assign_clusters(
     n_clusters: int,
     linkage_method: str = "ward",
 ) -> np.ndarray:
-    """Fit AgglomerativeClustering and return integer label array."""
-    model = AgglomerativeClustering(n_clusters=n_clusters, linkage=linkage_method)
+    """Fit KMeans and return integer label array."""
+    model = KMeans(
+        n_clusters=n_clusters,
+        init="k-means++",
+        n_init=10,
+        random_state=42,
+    )
     return model.fit_predict(scaled_data)
 
 

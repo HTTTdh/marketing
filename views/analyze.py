@@ -30,6 +30,7 @@ from services.clustering import (
     compute_fcm_pca_projection,
     detect_anomalies,
     compute_elbow,
+    detect_elbow_k,
 )
 from services.visualization import (
     plot_dendrogram,
@@ -268,20 +269,23 @@ def render(api_key: str | None = None):
         else:
             if st.button("🔍 Tính Elbow", key="btn_elbow"):
                 with st.spinner("Đang tính Elbow Method…"):
-                    _scaled_elbow, _ = scale_features(df_clean, feature_cols)
-                    _k_vals, _inertias = compute_elbow(_scaled_elbow, list(range(int(k_min_elbow), int(k_max_elbow) + 1)))
+                    _raw_elbow = df_clean[feature_cols].values
+                    _k_vals, _inertias = compute_elbow(_raw_elbow, list(range(int(k_min_elbow), int(k_max_elbow) + 1)))
                 st.session_state["elbow_result"] = {"k_vals": _k_vals, "inertias": _inertias}
 
             if "elbow_result" in st.session_state:
                 _er = st.session_state["elbow_result"]
+                _auto_k = detect_elbow_k(_er["k_vals"], _er["inertias"])
+                _default_idx = _er["k_vals"].index(_auto_k) if _auto_k in _er["k_vals"] else 0
                 _rec_k = st.selectbox(
                     "Đánh dấu k gợi ý trên biểu đồ:",
                     options=_er["k_vals"],
-                    index=min(1, len(_er["k_vals"]) - 1),
+                    index=_default_idx,
                     key="elbow_sel_k",
                 )
                 fig_elbow = plot_elbow(_er["k_vals"], _er["inertias"], recommended_k=int(_rec_k))
                 st.pyplot(fig_elbow, use_container_width=True)
+                st.success(f"📌 Kết luận: Elbow xuất hiện tại **k = {_auto_k}** → nên chọn **k = {_auto_k}** cụm.")
                 st.caption("💡 Sau khi xác định k từ biểu đồ trên, hãy đặt **Số lượng cụm** ở slider bên trên và nhấn Chạy phân tích.")
 
     # -------------------------------------------------------------------------
